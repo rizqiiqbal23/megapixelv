@@ -2,6 +2,8 @@ import { mkdir, readFile, writeFile } from "fs/promises";
 import path from "path";
 import { CAMERAS, type CameraStatus, type ManualOverrides } from "@/lib/cameras";
 
+export type { CameraStatus, ManualOverrides };
+
 const DATA_DIR = path.join(process.cwd(), "data");
 const OVERRIDES_FILE = path.join(DATA_DIR, "manual-bookings.json");
 
