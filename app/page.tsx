@@ -424,7 +424,12 @@ export default function Home() {
         <span className="mr-2">📷</span>
         BOOK
       </Link>
-      <p className="fixed bottom-20 left-4 z-20 rounded-lg bg-white/85 px-2 py-1 text-[11px] font-medium text-pink-700 shadow-sm lg:hidden">
+      <p
+        className={`fixed bottom-4 left-4 z-20 rounded-lg bg-pink-500 px-2 py-1 text-[11px] font-medium text-white shadow-sm transition-all duration-300 lg:hidden ${
+          showFloatingBook ? "translate-y-6 opacity-0 pointer-events-none" : "translate-y-0 opacity-100"
+        }`}
+        style={{ animation: "starFloat 2.2s ease-in-out infinite" }}
+      >
         ↕ scroll untuk book
       </p>
 
