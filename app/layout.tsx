@@ -17,6 +17,7 @@ export default function RootLayout({
       <head>
         <meta name="color-scheme" content="light only" />
         <meta name="supported-color-schemes" content="light" />
+        <meta name="theme-color" content="#fff8fb" />
       </head>
       <body className="min-h-full flex flex-col">
         {children}

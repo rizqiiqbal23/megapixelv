@@ -10,6 +10,20 @@ html {
   color-scheme: light only !important;
 }
 
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #fff8fb;
+    --foreground: #2b2430;
+    color-scheme: light only;
+  }
+}
+
+*,
+*::before,
+*::after {
+  forced-color-adjust: none;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
