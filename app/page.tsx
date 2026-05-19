@@ -11,6 +11,7 @@ type CameraBookings = Record<string, DayCameraStatus>;
 type BookingResponse = {
   cameraBookings?: CameraBookings;
   lastUpdatedAt?: string;
+  fetchSource?: "sheet" | "snapshot" | "snapshot-stale-fallback";
   error?: string;
 };
 const BOOKINGS_STORAGE_KEY = "booking_cache_v1";
@@ -95,6 +96,7 @@ export default function Home() {
     return localStorage.getItem(BOOKINGS_UPDATED_AT_KEY);
   });
   const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
+  const [lastFetchSource, setLastFetchSource] = useState<BookingResponse["fetchSource"]>("snapshot");
   const [activeMonth, setActiveMonth] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
@@ -114,6 +116,7 @@ export default function Home() {
 
       const nextBookings = json.cameraBookings || {};
       setCameraBookings(nextBookings);
+      setLastFetchSource(json.fetchSource || "snapshot");
       try {
         localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(nextBookings));
         const nowIso = json.lastUpdatedAt || new Date().toISOString();
@@ -197,6 +200,12 @@ export default function Home() {
 
   const cells = useMemo(() => buildCalendarDays(year, month), [year, month]);
   const selectedStatus = selectedDateKey ? cameraBookings[selectedDateKey] : undefined;
+  const fetchSourceLabel =
+    lastFetchSource === "sheet"
+      ? "Google Sheet (live)"
+      : lastFetchSource === "snapshot-stale-fallback"
+        ? "Cache server (fallback)"
+        : "Cache server (snapshot)";
 
   return (
     <main className="relative min-h-screen bg-[url('/bg-new.jpeg')] bg-cover bg-center pb-24 lg:h-screen lg:overflow-hidden lg:pb-0">
@@ -393,6 +402,7 @@ export default function Home() {
               <span className="animate-bounce [animation-delay:150ms] rotate-[-8deg]">✨</span>
             </div>
             <p className="text-sm font-semibold text-pink-700 sm:text-base">Mohon tunggu ya, data sedang dimuat...</p>
+            <p className="mt-1 text-[11px] text-zinc-500">Sumber data terakhir: {fetchSourceLabel}</p>
           </div>
         </div>
       )}

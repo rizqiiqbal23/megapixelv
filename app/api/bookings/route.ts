@@ -326,6 +326,7 @@ async function buildResponseFromSnapshot(snapshot: BookingsSnapshot, fetchedAt: 
     bookedDates: Object.keys(mergedBookings).sort(),
     cameras: CAMERAS,
     lastUpdatedAt: fetchedAt,
+    fetchSource: "snapshot",
   });
 }
 
@@ -468,6 +469,7 @@ export async function GET(request: NextRequest) {
       bookedDates: Object.keys(mergedBookings).sort(),
       cameras: CAMERAS,
       lastUpdatedAt,
+      fetchSource: "sheet",
       debug: {
         scriptError: latest.scriptError,
         payloadKeys: latest.payloadKeys,
@@ -489,6 +491,7 @@ export async function GET(request: NextRequest) {
         bookedDates: Object.keys(mergedBookings).sort(),
         cameras: CAMERAS,
         lastUpdatedAt: fetchedAt,
+        fetchSource: "snapshot-stale-fallback",
         stale: true,
         error: `${parsed.message} Memakai cache terakhir.`,
         debug: parsed.status
