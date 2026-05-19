@@ -92,6 +92,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [isLoadingBookings, setIsLoadingBookings] = useState(false);
   const [showFloatingBook, setShowFloatingBook] = useState(false);
+  const [isBookPinnedAtBottom, setIsBookPinnedAtBottom] = useState(false);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
     return localStorage.getItem(BOOKINGS_UPDATED_AT_KEY);
@@ -159,10 +160,26 @@ export default function Home() {
     let hideTimer: ReturnType<typeof setTimeout> | null = null;
 
     const handleScroll = () => {
+      const root = document.documentElement;
+      const nearBottom = window.innerHeight + window.scrollY >= root.scrollHeight - 4;
+
+      if (nearBottom) {
+        setIsBookPinnedAtBottom(true);
+        setShowFloatingBook(true);
+        if (hideTimer) clearTimeout(hideTimer);
+        return;
+      }
+
+      if (isBookPinnedAtBottom) {
+        setIsBookPinnedAtBottom(false);
+      }
+
       setShowFloatingBook(true);
       if (hideTimer) clearTimeout(hideTimer);
       hideTimer = setTimeout(() => {
-        setShowFloatingBook(false);
+        if (!isBookPinnedAtBottom) {
+          setShowFloatingBook(false);
+        }
       }, 1200);
     };
 
@@ -172,7 +189,7 @@ export default function Home() {
       window.removeEventListener("scroll", handleScroll);
       if (hideTimer) clearTimeout(hideTimer);
     };
-  }, []);
+  }, [isBookPinnedAtBottom]);
 
   useEffect(() => {
     const handleStorage = (event: StorageEvent) => {
@@ -407,6 +424,9 @@ export default function Home() {
         <span className="mr-2">📷</span>
         BOOK
       </Link>
+      <p className="fixed bottom-20 left-4 z-20 rounded-lg bg-white/85 px-2 py-1 text-[11px] font-medium text-pink-700 shadow-sm lg:hidden">
+        ↕ scroll untuk book
+      </p>
 
       {isLoadingBookings && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-pink-100/80 backdrop-blur-sm">
