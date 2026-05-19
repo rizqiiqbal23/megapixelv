@@ -332,7 +332,7 @@ export default function AdminPage() {
 
   if (checkingSession) {
     return (
-      <main className="min-h-screen bg-[url('/bg-new.jpeg')] bg-cover bg-center px-4 py-8">
+      <main className="min-h-screen bg-[url('/image/bg.png')] bg-cover bg-center px-4 py-8">
         <div className="mx-auto max-w-md rounded-3xl border border-pink-100 bg-white/90 p-6 text-center shadow-xl backdrop-blur">
           <p className="text-sm font-semibold text-pink-700">Memeriksa akses admin...</p>
         </div>
@@ -342,7 +342,7 @@ export default function AdminPage() {
 
   if (!authenticated) {
     return (
-      <main className="min-h-screen bg-[url('/bg-new.jpeg')] bg-cover bg-center px-4 py-8">
+      <main className="min-h-screen bg-[url('/image/bg.png')] bg-cover bg-center px-4 py-8">
         <div className="mx-auto max-w-md rounded-3xl border border-pink-100 bg-white/92 p-6 shadow-xl backdrop-blur">
           <div className="mb-5 text-center">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-pink-500">Admin Access</p>
@@ -387,7 +387,7 @@ export default function AdminPage() {
   const overrideDates = Object.keys(manualOverrides).sort();
 
   return (
-    <main className="relative min-h-screen bg-[url('/bg-new.jpeg')] bg-cover bg-center pb-24 lg:h-screen lg:overflow-hidden lg:pb-0">
+    <main className="relative min-h-screen bg-[url('/image/bg.png')] bg-cover bg-center pb-24 lg:h-screen lg:overflow-hidden lg:pb-0">
       <div className="pointer-events-none absolute inset-0 z-0" aria-hidden="true">
         <div className="absolute left-2 top-2 h-14 w-14 rounded-full bg-pink-300/40 blur-xl sm:left-4 sm:top-4 sm:h-20 sm:w-20" />
         <div className="absolute right-2 top-2 h-12 w-12 rounded-full bg-rose-300/35 blur-xl sm:right-4 sm:top-4 sm:h-16 sm:w-16" />

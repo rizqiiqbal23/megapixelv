@@ -223,7 +223,7 @@ export default function Home() {
         : "Cache server (snapshot)";
 
   return (
-    <main className="relative min-h-screen bg-[url('/bg-new.jpeg')] bg-cover bg-center pb-24 lg:h-screen lg:overflow-hidden lg:pb-0">
+    <main className="relative min-h-screen bg-[url('/image/bg.png')] bg-cover bg-center pb-24 lg:h-screen lg:overflow-hidden lg:pb-0">
       <div className="pointer-events-none absolute inset-0 z-0" aria-hidden="true">
         <div className="absolute left-2 top-2 h-14 w-14 rounded-full bg-pink-300/40 blur-xl sm:left-4 sm:top-4 sm:h-20 sm:w-20" />
         <div className="absolute right-2 top-2 h-12 w-12 rounded-full bg-rose-300/35 blur-xl sm:right-4 sm:top-4 sm:h-16 sm:w-16" />
