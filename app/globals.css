@@ -46,10 +46,6 @@ body::before {
   inset: 0;
   z-index: -1;
   background-color: #fff8fb;
-  background-image: url("/image/bg.png");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: cover;
 }
 
 @keyframes starFloat {
@@ -72,5 +68,29 @@ body::before {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes floatSoft {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -8px, 0);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes floatSpin {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(-4deg);
+  }
+  50% {
+    transform: translate3d(0, -10px, 0) rotate(4deg);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) rotate(-4deg);
   }
 }
