@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const CAMERAS = ["nikon", "casio", "kodak"] as const;
 type CameraName = (typeof CAMERAS)[number];
@@ -76,6 +76,7 @@ function getDayTypeIcon(type: "empty" | "partial" | "full"): string {
 }
 
 export default function Home() {
+  const isFetchingRef = useRef(false);
   const [cameraBookings, setCameraBookings] = useState<CameraBookings>(() => {
     if (typeof window === "undefined") return {};
     try {
@@ -103,7 +104,9 @@ export default function Home() {
   });
 
   const loadBookings = useCallback(async (signal?: AbortSignal) => {
+    if (isFetchingRef.current) return;
     try {
+      isFetchingRef.current = true;
       setIsLoadingBookings(true);
       const response = await fetch("/api/bookings", {
         signal,
@@ -130,6 +133,7 @@ export default function Home() {
       if (signal?.aborted) return;
       setError(err instanceof Error ? err.message : "Terjadi kesalahan.");
     } finally {
+      isFetchingRef.current = false;
       if (!signal?.aborted) setIsLoadingBookings(false);
     }
   }, []);
@@ -172,14 +176,25 @@ export default function Home() {
 
   useEffect(() => {
     const handleStorage = (event: StorageEvent) => {
-      if (event.key === BOOKINGS_STORAGE_KEY || event.key === BOOKINGS_UPDATED_AT_KEY) {
-        void loadBookings();
+      if (event.key === BOOKINGS_STORAGE_KEY && event.newValue) {
+        try {
+          const parsed = JSON.parse(event.newValue) as CameraBookings;
+          if (parsed && typeof parsed === "object") {
+            setCameraBookings(parsed);
+          }
+        } catch {
+          // ignore invalid storage value
+        }
+      }
+
+      if (event.key === BOOKINGS_UPDATED_AT_KEY) {
+        setLastUpdatedAt(event.newValue || null);
       }
     };
 
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
-  }, [loadBookings]);
+  }, []);
 
   const year = activeMonth.getFullYear();
   const month = activeMonth.getMonth();

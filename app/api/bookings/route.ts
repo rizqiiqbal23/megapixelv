@@ -519,3 +519,11 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export async function HEAD(request: NextRequest) {
+  const getResponse = await GET(request);
+  return new NextResponse(null, {
+    status: getResponse.status,
+    headers: getResponse.headers,
+  });
+}
