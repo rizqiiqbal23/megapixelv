@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { mergeManualOverrides, readManualOverrides } from "@/lib/manual-bookings";
+import { getSessionCookieName, verifySessionToken } from "@/lib/admin-auth";
 import {
   isBookingsSnapshotStale,
   readBookingsSnapshot,
@@ -25,6 +26,16 @@ type BookingPayload =
     };
 
 export const runtime = "nodejs";
+
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const RATE_LIMIT_MAX_REQUESTS = 60;
+const FORCED_REFRESH_COOLDOWN_MS = 5 * 60 * 1000;
+const REFRESH_WAIT_TIMEOUT_MS = 8 * 1000;
+
+type RateLimitBucket = { count: number; resetAt: number };
+const rateLimitBuckets = new Map<string, RateLimitBucket>();
+let refreshInFlight: Promise<void> | null = null;
+let lastForcedRefreshAt = 0;
 
 function normalizeDate(value: string): string | null {
   const trimmed = value.trim();
@@ -319,8 +330,65 @@ async function buildResponseFromSnapshot(snapshot: BookingsSnapshot, fetchedAt: 
   });
 }
 
+function getClientIp(request: NextRequest): string {
+  const forwarded = request.headers.get("x-forwarded-for");
+  if (forwarded) {
+    const first = forwarded.split(",")[0]?.trim();
+    if (first) return first;
+  }
+
+  const realIp = request.headers.get("x-real-ip")?.trim();
+  if (realIp) return realIp;
+  return "unknown";
+}
+
+function checkRateLimit(ip: string): { allowed: boolean; retryAfterSeconds: number } {
+  const now = Date.now();
+  const current = rateLimitBuckets.get(ip);
+
+  if (!current || now >= current.resetAt) {
+    rateLimitBuckets.set(ip, {
+      count: 1,
+      resetAt: now + RATE_LIMIT_WINDOW_MS,
+    });
+    return { allowed: true, retryAfterSeconds: Math.ceil(RATE_LIMIT_WINDOW_MS / 1000) };
+  }
+
+  if (current.count >= RATE_LIMIT_MAX_REQUESTS) {
+    const retryAfterSeconds = Math.max(1, Math.ceil((current.resetAt - now) / 1000));
+    return { allowed: false, retryAfterSeconds };
+  }
+
+  current.count += 1;
+  return { allowed: true, retryAfterSeconds: Math.ceil((current.resetAt - now) / 1000) };
+}
+
+async function waitForInFlightRefresh() {
+  if (!refreshInFlight) return;
+  await Promise.race([
+    refreshInFlight,
+    new Promise<void>((resolve) => setTimeout(resolve, REFRESH_WAIT_TIMEOUT_MS)),
+  ]);
+}
+
 export async function GET(request: NextRequest) {
   const fetchedAt = new Date().toISOString();
+  const ip = getClientIp(request);
+  const rateLimit = checkRateLimit(ip);
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      {
+        error: "Terlalu banyak request. Coba lagi sebentar.",
+      },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(rateLimit.retryAfterSeconds),
+        },
+      }
+    );
+  }
+
   const sheetUrl = process.env.GOOGLE_SHEETS_WEBAPP_URL;
   if (!sheetUrl) {
     return NextResponse.json(
@@ -333,27 +401,57 @@ export async function GET(request: NextRequest) {
   }
 
   const refreshRequested = request.nextUrl.searchParams.get("refresh") === "1";
+  const adminToken = request.cookies.get(getSessionCookieName())?.value;
+  const isAdmin = Boolean(adminToken && verifySessionToken(adminToken));
+  const forceRefreshRequested = refreshRequested && isAdmin;
+  const forceRefreshIgnored = refreshRequested && !isAdmin;
+
+  if (forceRefreshRequested && Date.now() - lastForcedRefreshAt < FORCED_REFRESH_COOLDOWN_MS) {
+    const snapshot = await readBookingsSnapshot();
+    if (snapshot) {
+      const response = await buildResponseFromSnapshot(snapshot, fetchedAt);
+      response.headers.set("x-refresh-cooldown", "1");
+      return response;
+    }
+  }
+
+  if (refreshInFlight) {
+    await waitForInFlightRefresh();
+  }
+
   const snapshot = await readBookingsSnapshot();
-  const shouldRefresh = refreshRequested || !snapshot || isBookingsSnapshotStale(snapshot.lastSyncedAt);
+  const shouldRefresh = forceRefreshRequested || !snapshot || isBookingsSnapshotStale(snapshot.lastSyncedAt);
 
   if (!shouldRefresh && snapshot) {
-    return buildResponseFromSnapshot(snapshot, fetchedAt);
+    const response = await buildResponseFromSnapshot(snapshot, fetchedAt);
+    if (forceRefreshIgnored) response.headers.set("x-refresh-ignored", "admin-only");
+    return response;
   }
 
   try {
-    const latest = await fetchLatestBookings(sheetUrl);
-    const lastUpdatedAt = fetchedAt;
+    const runRefresh = async () => {
+      const latest = await fetchLatestBookings(sheetUrl);
+      const lastUpdatedAt = fetchedAt;
+      await writeBookingsSnapshot({
+        cameraBookings: latest.cameraBookings,
+        bookedDates: latest.bookedDates,
+        lastSyncedAt: lastUpdatedAt,
+      });
+      if (forceRefreshRequested) {
+        lastForcedRefreshAt = Date.now();
+      }
+      return { latest, lastUpdatedAt };
+    };
 
-    await writeBookingsSnapshot({
-      cameraBookings: latest.cameraBookings,
-      bookedDates: latest.bookedDates,
-      lastSyncedAt: lastUpdatedAt,
-    });
+    const refreshPromise = runRefresh();
+    refreshInFlight = refreshPromise.then(() => undefined).catch(() => undefined);
+    const { latest, lastUpdatedAt } = await refreshPromise;
+    refreshInFlight = null;
 
     const manualOverrides = await readManualOverrides();
     const mergedBookings = mergeManualOverrides(latest.cameraBookings, manualOverrides);
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       cameraBookings: mergedBookings,
       bookedDates: Object.keys(mergedBookings).sort(),
       cameras: CAMERAS,
@@ -366,7 +464,10 @@ export async function GET(request: NextRequest) {
         refreshed: true,
       },
     });
+    if (forceRefreshIgnored) response.headers.set("x-refresh-ignored", "admin-only");
+    return response;
   } catch (error) {
+    refreshInFlight = null;
     const parsed = parseErrorPayload(error);
 
     if (snapshot) {
