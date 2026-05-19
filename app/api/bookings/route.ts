@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { mergeManualOverrides, readManualOverrides } from "@/lib/manual-bookings";
+import { getSessionCookieName, verifySessionToken } from "@/lib/admin-auth";
+import {
+  mergeManualOverrides,
+  readManualOverrides,
+  readManualOverridesLastUpdatedAt,
+} from "@/lib/manual-bookings";
 import {
   isBookingsSnapshotStale,
   readBookingsSnapshot,
@@ -317,15 +322,27 @@ function parseErrorPayload(error: unknown): { message: string; status?: number; 
   }
 }
 
-async function buildResponseFromSnapshot(snapshot: BookingsSnapshot, fetchedAt: string) {
+async function resolveLastDataUpdatedAt(sheetSyncedAt: string): Promise<string> {
+  const overrideUpdatedAt = await readManualOverridesLastUpdatedAt();
+  if (!overrideUpdatedAt) return sheetSyncedAt;
+
+  const sheetTime = new Date(sheetSyncedAt).getTime();
+  const overrideTime = new Date(overrideUpdatedAt).getTime();
+  if (Number.isNaN(sheetTime)) return overrideUpdatedAt;
+  if (Number.isNaN(overrideTime)) return sheetSyncedAt;
+  return overrideTime > sheetTime ? overrideUpdatedAt : sheetSyncedAt;
+}
+
+async function buildResponseFromSnapshot(snapshot: BookingsSnapshot, _fetchedAt: string) {
   const manualOverrides = await readManualOverrides();
   const mergedBookings = mergeManualOverrides(snapshot.cameraBookings, manualOverrides);
+  const lastUpdatedAt = await resolveLastDataUpdatedAt(snapshot.lastSyncedAt);
 
   return NextResponse.json({
     cameraBookings: mergedBookings,
     bookedDates: Object.keys(mergedBookings).sort(),
     cameras: CAMERAS,
-    lastUpdatedAt: fetchedAt,
+    lastUpdatedAt,
     fetchSource: "snapshot",
   });
 }
@@ -415,9 +432,17 @@ export async function GET(request: NextRequest) {
   }
 
   const refreshRequested = request.nextUrl.searchParams.get("refresh") === "1";
+  const bypassCooldownRequested = request.nextUrl.searchParams.get("nocooldown") === "1";
+  const token = request.cookies.get(getSessionCookieName())?.value;
+  const isAdmin = token ? verifySessionToken(token) : false;
+  const allowBypassCooldown = bypassCooldownRequested && isAdmin;
   const forceRefreshRequested = refreshRequested;
 
-  if (forceRefreshRequested && Date.now() - lastForcedRefreshAt < FORCED_REFRESH_COOLDOWN_MS) {
+  if (
+    forceRefreshRequested &&
+    !allowBypassCooldown &&
+    Date.now() - lastForcedRefreshAt < FORCED_REFRESH_COOLDOWN_MS
+  ) {
     const snapshot = await readBookingsSnapshot();
     if (snapshot) {
       const response = await buildResponseFromSnapshot(snapshot, fetchedAt);
@@ -459,10 +484,11 @@ export async function GET(request: NextRequest) {
       releaseInFlight();
       refreshInFlight = null;
     }
-    const { latest, lastUpdatedAt } = latestResult;
+    const { latest, lastUpdatedAt: lastSyncedAt } = latestResult;
 
     const manualOverrides = await readManualOverrides();
     const mergedBookings = mergeManualOverrides(latest.cameraBookings, manualOverrides);
+    const lastUpdatedAt = await resolveLastDataUpdatedAt(lastSyncedAt);
 
     const response = NextResponse.json({
       cameraBookings: mergedBookings,
@@ -486,11 +512,12 @@ export async function GET(request: NextRequest) {
     if (snapshot) {
       const manualOverrides = await readManualOverrides();
       const mergedBookings = mergeManualOverrides(snapshot.cameraBookings, manualOverrides);
+      const lastUpdatedAt = await resolveLastDataUpdatedAt(snapshot.lastSyncedAt);
       return NextResponse.json({
         cameraBookings: mergedBookings,
         bookedDates: Object.keys(mergedBookings).sort(),
         cameras: CAMERAS,
-        lastUpdatedAt: fetchedAt,
+        lastUpdatedAt,
         fetchSource: "snapshot-stale-fallback",
         stale: true,
         error: `${parsed.message} Memakai cache terakhir.`,

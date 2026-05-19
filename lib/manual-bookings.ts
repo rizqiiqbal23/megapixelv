@@ -74,6 +74,20 @@ export async function readManualOverrides(): Promise<ManualOverrides> {
   return overrides;
 }
 
+export async function readManualOverridesLastUpdatedAt(): Promise<string | null> {
+  if (!sql) return null;
+
+  await ensureTable();
+  const db = requireSql();
+  const rows = (await db`
+    SELECT MAX(updated_at) AS latest_updated_at
+    FROM manual_bookings
+  `) as Array<{ latest_updated_at: string | null }>;
+
+  const value = rows[0]?.latest_updated_at;
+  return value || null;
+}
+
 export async function writeManualOverrides(overrides: ManualOverrides): Promise<void> {
   if (!sql) {
     throw new Error("DATABASE_URL belum di-set.");

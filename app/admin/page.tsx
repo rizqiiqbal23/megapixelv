@@ -125,6 +125,7 @@ export default function AdminPage() {
   });
   const [manualOverrides, setManualOverrides] = useState<ManualOverrides>({});
   const [loadingData, setLoadingData] = useState(false);
+  const [refreshingSheet, setRefreshingSheet] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
@@ -157,10 +158,13 @@ export default function AdminPage() {
   const selectedMerged = selectedDateKey ? mergedBookings[selectedDateKey] : undefined;
   const selectedOverride = selectedDateKey ? manualOverrides[selectedDateKey] : undefined;
 
-  const loadAdminData = useCallback(async () => {
+  const loadAdminData = useCallback(async (options?: { forceSheetRefresh?: boolean }) => {
     setLoadingData(true);
     try {
-      const bookingsResponse = await fetch("/api/bookings", { cache: "no-store" });
+      const bookingsUrl = options?.forceSheetRefresh
+        ? "/api/bookings?refresh=1&nocooldown=1"
+        : "/api/bookings";
+      const bookingsResponse = await fetch(bookingsUrl, { cache: "no-store" });
       const bookingsJson = await safeJson<BookingResponse>(bookingsResponse);
       if (!bookingsResponse.ok) {
         throw new Error(bookingsJson?.error || "Gagal memuat booking.");
@@ -190,6 +194,19 @@ export default function AdminPage() {
       setLoadingData(false);
     }
   }, []);
+
+  async function forceRefreshFromSheet() {
+    setRefreshingSheet(true);
+    setMessage(null);
+    try {
+      await loadAdminData({ forceSheetRefresh: true });
+      setMessage("Data berhasil diambil ulang dari Google Sheet.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Gagal mengambil ulang data Google Sheet.");
+    } finally {
+      setRefreshingSheet(false);
+    }
+  }
 
   useEffect(() => {
     let active = true;
@@ -481,6 +498,17 @@ export default function AdminPage() {
                 </button>
               );
             })}
+          </div>
+
+          <div className="mt-3 flex justify-end">
+            <button
+              type="button"
+              onClick={forceRefreshFromSheet}
+              disabled={loadingData || saving || refreshingSheet}
+              className="rounded-xl border border-pink-200 bg-white px-3 py-2 text-xs font-medium text-pink-700 disabled:opacity-60"
+            >
+              {refreshingSheet ? "Mengambil..." : "Ambil ulang Google Sheet"}
+            </button>
           </div>
 
           {loadingData && (
