@@ -23,6 +23,7 @@ type OverridesResponse = {
 };
 
 const BOOKINGS_STORAGE_KEY = "booking_cache_v1";
+const BOOKINGS_UPDATED_AT_KEY = "booking_cache_updated_at_v1";
 
 function toDateKey(year: number, month: number, day: number): string {
   return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
@@ -166,6 +167,12 @@ export default function AdminPage() {
       }
 
       setCameraBookings(bookingsJson?.cameraBookings || {});
+      try {
+        localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(bookingsJson?.cameraBookings || {}));
+        localStorage.setItem(BOOKINGS_UPDATED_AT_KEY, bookingsJson?.lastUpdatedAt || new Date().toISOString());
+      } catch {
+        // ignore storage errors
+      }
 
       const overridesResponse = await fetch("/api/admin/overrides", { cache: "no-store" });
       const overridesJson = await safeJson<OverridesResponse>(overridesResponse);

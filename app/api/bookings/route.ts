@@ -307,7 +307,7 @@ function parseErrorPayload(error: unknown): { message: string; status?: number; 
   }
 }
 
-async function buildResponseFromSnapshot(snapshot: BookingsSnapshot) {
+async function buildResponseFromSnapshot(snapshot: BookingsSnapshot, fetchedAt: string) {
   const manualOverrides = await readManualOverrides();
   const mergedBookings = mergeManualOverrides(snapshot.cameraBookings, manualOverrides);
 
@@ -315,11 +315,12 @@ async function buildResponseFromSnapshot(snapshot: BookingsSnapshot) {
     cameraBookings: mergedBookings,
     bookedDates: Object.keys(mergedBookings).sort(),
     cameras: CAMERAS,
-    lastUpdatedAt: snapshot.lastSyncedAt,
+    lastUpdatedAt: fetchedAt,
   });
 }
 
 export async function GET(request: NextRequest) {
+  const fetchedAt = new Date().toISOString();
   const sheetUrl = process.env.GOOGLE_SHEETS_WEBAPP_URL;
   if (!sheetUrl) {
     return NextResponse.json(
@@ -336,12 +337,12 @@ export async function GET(request: NextRequest) {
   const shouldRefresh = refreshRequested || !snapshot || isBookingsSnapshotStale(snapshot.lastSyncedAt);
 
   if (!shouldRefresh && snapshot) {
-    return buildResponseFromSnapshot(snapshot);
+    return buildResponseFromSnapshot(snapshot, fetchedAt);
   }
 
   try {
     const latest = await fetchLatestBookings(sheetUrl);
-    const lastUpdatedAt = new Date().toISOString();
+    const lastUpdatedAt = fetchedAt;
 
     await writeBookingsSnapshot({
       cameraBookings: latest.cameraBookings,
@@ -375,7 +376,7 @@ export async function GET(request: NextRequest) {
         cameraBookings: mergedBookings,
         bookedDates: Object.keys(mergedBookings).sort(),
         cameras: CAMERAS,
-        lastUpdatedAt: snapshot.lastSyncedAt,
+        lastUpdatedAt: fetchedAt,
         stale: true,
         error: `${parsed.message} Memakai cache terakhir.`,
         debug: parsed.status
