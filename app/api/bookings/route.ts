@@ -1,5 +1,11 @@
-﻿import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { mergeManualOverrides, readManualOverrides } from "@/lib/manual-bookings";
+import {
+  isBookingsSnapshotStale,
+  readBookingsSnapshot,
+  writeBookingsSnapshot,
+  type BookingsSnapshot,
+} from "@/lib/bookings-snapshot";
 
 const CAMERAS = ["nikon", "casio", "kodak"] as const;
 
@@ -80,7 +86,6 @@ function parseDateTime(value: string): Date | null {
   const trimmed = value.trim();
   if (!trimmed) return null;
 
-  // MM/DD/YYYY HH:MM:SS
   const dateTimeMatch = trimmed.match(
     /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/
   );
@@ -201,12 +206,10 @@ function extractCameraBookings(payload: BookingPayload): CameraBookings {
   const rows = payload.data ?? payload.rows ?? [];
 
   rows.forEach((row) => {
-    // Backward-compatible keys
     const basicDate = getRowValue(row, ["date", "tanggal", "tanggal sewa"]);
     const basicStatus = getRowValue(row, ["status"]);
     const basicCamera = getRowValue(row, ["camera", "kamera"]);
 
-    // Sheet keys used by user
     const rentDateTime = getRowValue(row, ["tanggal & jam sewa", "tanggal dan jam sewa"]);
     const durationRaw = getRowValue(row, ["durasi"]);
     const cameraRaw = basicCamera || getRowValue(row, ["kamera"]);
@@ -214,7 +217,6 @@ function extractCameraBookings(payload: BookingPayload): CameraBookings {
 
     if (!isAllowedPaymentStatus(paymentStatus)) return;
 
-    // If duration + date-time exists, derive date range booking from start -> end
     if (rentDateTime && durationRaw) {
       const start = parseDateTime(rentDateTime);
       const hours = parseDurationHours(durationRaw);
@@ -225,7 +227,6 @@ function extractCameraBookings(payload: BookingPayload): CameraBookings {
       }
     }
 
-    // Fallback existing behavior: mark single day when status says booked
     const date = normalizeDate(basicDate);
     if (!date) return;
     if (!isBookedStatus(basicStatus)) return;
@@ -242,9 +243,84 @@ function extractCameraBookings(payload: BookingPayload): CameraBookings {
   return result;
 }
 
-export async function GET() {
-  const sheetUrl = process.env.GOOGLE_SHEETS_WEBAPP_URL;
+async function fetchLatestBookings(sheetUrl: string): Promise<{
+  cameraBookings: CameraBookings;
+  bookedDates: string[];
+  rowsCount: number;
+  payloadKeys: string[];
+  scriptError: string | null;
+  sampleKeys: string[];
+}> {
+  const response = await fetch(sheetUrl, {
+    headers: { Accept: "application/json" },
+    cache: "no-store",
+  });
 
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(
+      JSON.stringify({
+        message: "Gagal mengambil data booking dari Google Sheet.",
+        status: response.status,
+        body: body.slice(0, 500),
+      })
+    );
+  }
+
+  const rawText = await response.text();
+  let json: BookingPayload;
+  try {
+    json = JSON.parse(rawText) as BookingPayload;
+  } catch {
+    throw new Error(
+      JSON.stringify({
+        message: "Response Google Apps Script bukan JSON valid.",
+        sample: rawText.slice(0, 500),
+      })
+    );
+  }
+
+  const cameraBookings = extractCameraBookings(json);
+  const bookedDates = Object.keys(cameraBookings).sort();
+  const rows = Array.isArray(json) ? [] : ((json.data ?? json.rows ?? []) as Array<Record<string, unknown>>);
+  const payloadKeys = Array.isArray(json) ? [] : Object.keys(json);
+
+  return {
+    cameraBookings,
+    bookedDates,
+    rowsCount: rows.length,
+    payloadKeys,
+    scriptError: Array.isArray(json) ? null : (json.error ?? null),
+    sampleKeys: rows[0] ? Object.keys(rows[0]) : [],
+  };
+}
+
+function parseErrorPayload(error: unknown): { message: string; status?: number; body?: string; sample?: string } {
+  if (!(error instanceof Error)) {
+    return { message: "Terjadi kesalahan saat membaca data booking." };
+  }
+
+  try {
+    return JSON.parse(error.message) as { message: string; status?: number; body?: string; sample?: string };
+  } catch {
+    return { message: error.message || "Terjadi kesalahan saat membaca data booking." };
+  }
+}
+
+async function buildResponseFromSnapshot(snapshot: BookingsSnapshot) {
+  const manualOverrides = await readManualOverrides();
+  const mergedBookings = mergeManualOverrides(snapshot.cameraBookings, manualOverrides);
+
+  return NextResponse.json({
+    cameraBookings: mergedBookings,
+    bookedDates: Object.keys(mergedBookings).sort(),
+    cameras: CAMERAS,
+    lastUpdatedAt: snapshot.lastSyncedAt,
+  });
+}
+
+export async function GET(request: NextRequest) {
+  const sheetUrl = process.env.GOOGLE_SHEETS_WEBAPP_URL;
   if (!sheetUrl) {
     return NextResponse.json(
       {
@@ -255,63 +331,75 @@ export async function GET() {
     );
   }
 
+  const refreshRequested = request.nextUrl.searchParams.get("refresh") === "1";
+  const snapshot = await readBookingsSnapshot();
+  const shouldRefresh = refreshRequested || !snapshot || isBookingsSnapshotStale(snapshot.lastSyncedAt);
+
+  if (!shouldRefresh && snapshot) {
+    return buildResponseFromSnapshot(snapshot);
+  }
+
   try {
-    const response = await fetch(sheetUrl, {
-      headers: { Accept: "application/json" },
-      cache: "no-store",
+    const latest = await fetchLatestBookings(sheetUrl);
+    const lastUpdatedAt = new Date().toISOString();
+
+    await writeBookingsSnapshot({
+      cameraBookings: latest.cameraBookings,
+      bookedDates: latest.bookedDates,
+      lastSyncedAt: lastUpdatedAt,
     });
 
-    if (!response.ok) {
-      const body = await response.text();
-      return NextResponse.json(
-        {
-          error: "Gagal mengambil data booking dari Google Sheet.",
-          debug: { status: response.status, body: body.slice(0, 500) },
-        },
-        { status: 502 }
-      );
-    }
-
-    const rawText = await response.text();
-    let json: BookingPayload;
-    try {
-      json = JSON.parse(rawText) as BookingPayload;
-    } catch {
-      return NextResponse.json(
-        {
-          error: "Response Google Apps Script bukan JSON valid.",
-          debug: { sample: rawText.slice(0, 500) },
-        },
-        { status: 502 }
-      );
-    }
-    const cameraBookings = extractCameraBookings(json);
     const manualOverrides = await readManualOverrides();
-    const mergedBookings = mergeManualOverrides(cameraBookings, manualOverrides);
-    const bookedDates = Object.keys(mergedBookings).sort();
-    const rows = Array.isArray(json)
-      ? []
-      : ((json.data ?? json.rows ?? []) as Array<Record<string, unknown>>);
-    const payloadKeys = Array.isArray(json) ? [] : Object.keys(json);
+    const mergedBookings = mergeManualOverrides(latest.cameraBookings, manualOverrides);
 
     return NextResponse.json({
       cameraBookings: mergedBookings,
-      bookedDates,
+      bookedDates: Object.keys(mergedBookings).sort(),
       cameras: CAMERAS,
+      lastUpdatedAt,
       debug: {
-        scriptError: Array.isArray(json) ? null : (json.error ?? null),
-        payloadKeys,
-        rowsCount: rows.length,
-        sampleKeys: rows[0] ? Object.keys(rows[0]) : [],
+        scriptError: latest.scriptError,
+        payloadKeys: latest.payloadKeys,
+        rowsCount: latest.rowsCount,
+        sampleKeys: latest.sampleKeys,
+        refreshed: true,
       },
     });
-  } catch {
+  } catch (error) {
+    const parsed = parseErrorPayload(error);
+
+    if (snapshot) {
+      const manualOverrides = await readManualOverrides();
+      const mergedBookings = mergeManualOverrides(snapshot.cameraBookings, manualOverrides);
+      return NextResponse.json({
+        cameraBookings: mergedBookings,
+        bookedDates: Object.keys(mergedBookings).sort(),
+        cameras: CAMERAS,
+        lastUpdatedAt: snapshot.lastSyncedAt,
+        stale: true,
+        error: `${parsed.message} Memakai cache terakhir.`,
+        debug: parsed.status
+          ? {
+              status: parsed.status,
+              body: parsed.body,
+              sample: parsed.sample,
+            }
+          : undefined,
+      });
+    }
+
     return NextResponse.json(
-      { error: "Terjadi kesalahan saat membaca data booking." },
-      { status: 500 }
+      {
+        error: parsed.message,
+        debug: parsed.status
+          ? {
+              status: parsed.status,
+              body: parsed.body,
+              sample: parsed.sample,
+            }
+          : undefined,
+      },
+      { status: parsed.status && parsed.status >= 400 ? 502 : 500 }
     );
   }
 }
-
-
-

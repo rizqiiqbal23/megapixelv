@@ -10,6 +10,7 @@ type CameraBookings = Record<string, DayCameraStatus>;
 
 type BookingResponse = {
   cameraBookings?: CameraBookings;
+  lastUpdatedAt?: string;
   error?: string;
 };
 const BOOKINGS_STORAGE_KEY = "booking_cache_v1";
@@ -115,7 +116,7 @@ export default function Home() {
       setCameraBookings(nextBookings);
       try {
         localStorage.setItem(BOOKINGS_STORAGE_KEY, JSON.stringify(nextBookings));
-        const nowIso = new Date().toISOString();
+        const nowIso = json.lastUpdatedAt || new Date().toISOString();
         localStorage.setItem(BOOKINGS_UPDATED_AT_KEY, nowIso);
         setLastUpdatedAt(nowIso);
       } catch {
