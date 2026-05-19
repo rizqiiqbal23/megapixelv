@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { mergeManualOverrides, readManualOverrides } from "@/lib/manual-bookings";
-import { getSessionCookieName, verifySessionToken } from "@/lib/admin-auth";
 import {
   isBookingsSnapshotStale,
   readBookingsSnapshot,
@@ -371,6 +370,20 @@ async function waitForInFlightRefresh() {
   ]);
 }
 
+async function refreshSnapshotFromSource(sheetUrl: string, fetchedAt: string, forceRefreshRequested: boolean) {
+  const latest = await fetchLatestBookings(sheetUrl);
+  const lastUpdatedAt = fetchedAt;
+  await writeBookingsSnapshot({
+    cameraBookings: latest.cameraBookings,
+    bookedDates: latest.bookedDates,
+    lastSyncedAt: lastUpdatedAt,
+  });
+  if (forceRefreshRequested) {
+    lastForcedRefreshAt = Date.now();
+  }
+  return { latest, lastUpdatedAt };
+}
+
 export async function GET(request: NextRequest) {
   const fetchedAt = new Date().toISOString();
   const ip = getClientIp(request);
@@ -401,10 +414,7 @@ export async function GET(request: NextRequest) {
   }
 
   const refreshRequested = request.nextUrl.searchParams.get("refresh") === "1";
-  const adminToken = request.cookies.get(getSessionCookieName())?.value;
-  const isAdmin = Boolean(adminToken && verifySessionToken(adminToken));
-  const forceRefreshRequested = refreshRequested && isAdmin;
-  const forceRefreshIgnored = refreshRequested && !isAdmin;
+  const forceRefreshRequested = refreshRequested;
 
   if (forceRefreshRequested && Date.now() - lastForcedRefreshAt < FORCED_REFRESH_COOLDOWN_MS) {
     const snapshot = await readBookingsSnapshot();
@@ -423,30 +433,32 @@ export async function GET(request: NextRequest) {
   const shouldRefresh = forceRefreshRequested || !snapshot || isBookingsSnapshotStale(snapshot.lastSyncedAt);
 
   if (!shouldRefresh && snapshot) {
-    const response = await buildResponseFromSnapshot(snapshot, fetchedAt);
-    if (forceRefreshIgnored) response.headers.set("x-refresh-ignored", "admin-only");
-    return response;
+    return buildResponseFromSnapshot(snapshot, fetchedAt);
   }
 
   try {
-    const runRefresh = async () => {
-      const latest = await fetchLatestBookings(sheetUrl);
-      const lastUpdatedAt = fetchedAt;
-      await writeBookingsSnapshot({
-        cameraBookings: latest.cameraBookings,
-        bookedDates: latest.bookedDates,
-        lastSyncedAt: lastUpdatedAt,
-      });
-      if (forceRefreshRequested) {
-        lastForcedRefreshAt = Date.now();
+    if (refreshInFlight) {
+      await waitForInFlightRefresh();
+      const latestSnapshot = await readBookingsSnapshot();
+      if (latestSnapshot) {
+        return buildResponseFromSnapshot(latestSnapshot, fetchedAt);
       }
-      return { latest, lastUpdatedAt };
-    };
+    }
 
-    const refreshPromise = runRefresh();
-    refreshInFlight = refreshPromise.then(() => undefined).catch(() => undefined);
-    const { latest, lastUpdatedAt } = await refreshPromise;
-    refreshInFlight = null;
+    let releaseInFlight: () => void = () => {};
+    const inFlightMarker = new Promise<void>((resolve) => {
+      releaseInFlight = resolve;
+    });
+    refreshInFlight = inFlightMarker;
+
+    let latestResult: Awaited<ReturnType<typeof refreshSnapshotFromSource>>;
+    try {
+      latestResult = await refreshSnapshotFromSource(sheetUrl, fetchedAt, forceRefreshRequested);
+    } finally {
+      releaseInFlight();
+      refreshInFlight = null;
+    }
+    const { latest, lastUpdatedAt } = latestResult;
 
     const manualOverrides = await readManualOverrides();
     const mergedBookings = mergeManualOverrides(latest.cameraBookings, manualOverrides);
@@ -464,7 +476,6 @@ export async function GET(request: NextRequest) {
         refreshed: true,
       },
     });
-    if (forceRefreshIgnored) response.headers.set("x-refresh-ignored", "admin-only");
     return response;
   } catch (error) {
     refreshInFlight = null;
