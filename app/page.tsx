@@ -133,12 +133,17 @@ export default function Home() {
 
   useEffect(() => {
     const controller = new AbortController();
+    const initialLoadId = window.setTimeout(() => {
+      void loadBookings(controller.signal);
+    }, 0);
+
     const intervalId = setInterval(() => {
-      loadBookings();
+      void loadBookings();
     }, 3 * 60 * 60 * 1000);
 
     return () => {
       controller.abort();
+      clearTimeout(initialLoadId);
       clearInterval(intervalId);
     };
   }, [loadBookings]);
@@ -161,6 +166,17 @@ export default function Home() {
       if (hideTimer) clearTimeout(hideTimer);
     };
   }, []);
+
+  useEffect(() => {
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === BOOKINGS_STORAGE_KEY || event.key === BOOKINGS_UPDATED_AT_KEY) {
+        void loadBookings();
+      }
+    };
+
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, [loadBookings]);
 
   const year = activeMonth.getFullYear();
   const month = activeMonth.getMonth();

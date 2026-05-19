@@ -9,6 +9,7 @@ type CameraBookings = Record<string, CameraStatus>;
 
 type BookingResponse = {
   cameraBookings?: CameraBookings;
+  lastUpdatedAt?: string;
   error?: string;
 };
 
@@ -158,6 +159,14 @@ export default function AdminPage() {
   const loadAdminData = useCallback(async () => {
     setLoadingData(true);
     try {
+      const bookingsResponse = await fetch("/api/bookings", { cache: "no-store" });
+      const bookingsJson = await safeJson<BookingResponse>(bookingsResponse);
+      if (!bookingsResponse.ok) {
+        throw new Error(bookingsJson?.error || "Gagal memuat booking.");
+      }
+
+      setCameraBookings(bookingsJson?.cameraBookings || {});
+
       const overridesResponse = await fetch("/api/admin/overrides", { cache: "no-store" });
       const overridesJson = await safeJson<OverridesResponse>(overridesResponse);
       if (!overridesResponse.ok) {
@@ -257,14 +266,10 @@ export default function AdminPage() {
       const json = await safeJson<{ error?: string; overrides?: ManualOverrides }>(response);
       if (!response.ok) throw new Error(json?.error || "Gagal menyimpan override.");
 
-      if (json?.overrides) {
-        setManualOverrides(json.overrides);
-      } else {
-        try {
-          await loadAdminData();
-        } catch {
-          // handled via message state
-        }
+      try {
+        await loadAdminData();
+      } catch {
+        // handled via message state
       }
       setMessage("Status berhasil disimpan.");
     } catch (error) {
@@ -288,14 +293,10 @@ export default function AdminPage() {
       const json = await safeJson<{ error?: string; overrides?: ManualOverrides }>(response);
       if (!response.ok) throw new Error(json?.error || "Gagal menghapus override.");
 
-      if (json?.overrides) {
-        setManualOverrides(json.overrides);
-      } else {
-        try {
-          await loadAdminData();
-        } catch {
-          // handled via message state
-        }
+      try {
+        await loadAdminData();
+      } catch {
+        // handled via message state
       }
       setMessage("Override manual dihapus.");
     } catch (error) {
