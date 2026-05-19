@@ -3,6 +3,7 @@
 :root {
   --background: #fff8fb;
   --foreground: #2b2430;
+  color-scheme: light;
 }
 
 @theme inline {
@@ -13,6 +14,7 @@
 html,
 body {
   height: 100%;
+  background-color: var(--background);
 }
 
 body {
