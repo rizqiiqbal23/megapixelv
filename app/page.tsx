@@ -74,29 +74,30 @@ function getDayTypeIcon(type: "empty" | "partial" | "full"): string {
 }
 
 export default function Home() {
-  const [cameraBookings, setCameraBookings] = useState<CameraBookings>({});
+  const [cameraBookings, setCameraBookings] = useState<CameraBookings>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      const raw = localStorage.getItem(BOOKINGS_STORAGE_KEY);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw) as CameraBookings;
+      if (!parsed || typeof parsed !== "object") return {};
+      return parsed;
+    } catch {
+      return {};
+    }
+  });
   const [error, setError] = useState<string | null>(null);
   const [isLoadingBookings, setIsLoadingBookings] = useState(false);
   const [showFloatingBook, setShowFloatingBook] = useState(false);
-  const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem(BOOKINGS_UPDATED_AT_KEY);
+  });
   const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
   const [activeMonth, setActiveMonth] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(BOOKINGS_STORAGE_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as CameraBookings;
-      if (parsed && typeof parsed === "object") setCameraBookings(parsed);
-      const updatedAt = localStorage.getItem(BOOKINGS_UPDATED_AT_KEY);
-      if (updatedAt) setLastUpdatedAt(updatedAt);
-    } catch {
-      // ignore invalid cache
-    }
-  }, []);
 
   const loadBookings = useCallback(async (signal?: AbortSignal) => {
     try {
