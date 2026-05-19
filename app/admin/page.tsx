@@ -18,7 +18,10 @@ type SessionResponse = {
 
 type OverridesResponse = {
   overrides?: ManualOverrides;
+  error?: string;
 };
+
+const BOOKINGS_STORAGE_KEY = "booking_cache_v1";
 
 function toDateKey(year: number, month: number, day: number): string {
   return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
@@ -66,6 +69,39 @@ function emptyStatus(): CameraStatus {
   return { nikon: false, casio: false, kodak: false };
 }
 
+function mergeOverrides(
+  baseBookings: CameraBookings,
+  overrides: ManualOverrides
+): CameraBookings {
+  const merged: CameraBookings = {};
+
+  for (const [dateKey, status] of Object.entries(baseBookings)) {
+    merged[dateKey] = { ...status };
+  }
+
+  for (const [dateKey, status] of Object.entries(overrides)) {
+    if (!merged[dateKey]) merged[dateKey] = emptyStatus();
+    for (const camera of CAMERAS) {
+      const overrideValue = status[camera];
+      if (typeof overrideValue === "boolean") {
+        merged[dateKey][camera] = overrideValue;
+      }
+    }
+  }
+
+  return merged;
+}
+
+async function safeJson<T>(response: Response): Promise<T | null> {
+  const raw = await response.text();
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
+
 export default function AdminPage() {
   const [checkingSession, setCheckingSession] = useState(true);
   const [authenticated, setAuthenticated] = useState(false);
@@ -73,7 +109,18 @@ export default function AdminPage() {
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [cameraBookings, setCameraBookings] = useState<CameraBookings>({});
+  const [cameraBookings, setCameraBookings] = useState<CameraBookings>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      const cachedRaw = localStorage.getItem(BOOKINGS_STORAGE_KEY);
+      if (!cachedRaw) return {};
+      const parsed = JSON.parse(cachedRaw) as BookingResponse["cameraBookings"];
+      if (!parsed || typeof parsed !== "object") return {};
+      return parsed;
+    } catch {
+      return {};
+    }
+  });
   const [manualOverrides, setManualOverrides] = useState<ManualOverrides>({});
   const [loadingData, setLoadingData] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -101,24 +148,24 @@ export default function AdminPage() {
     [activeMonth]
   );
   const cells = useMemo(() => buildCalendarDays(year, month), [year, month]);
-  const selectedMerged = selectedDateKey ? cameraBookings[selectedDateKey] : undefined;
+  const mergedBookings = useMemo(
+    () => mergeOverrides(cameraBookings, manualOverrides),
+    [cameraBookings, manualOverrides]
+  );
+  const selectedMerged = selectedDateKey ? mergedBookings[selectedDateKey] : undefined;
   const selectedOverride = selectedDateKey ? manualOverrides[selectedDateKey] : undefined;
 
   const loadAdminData = useCallback(async () => {
     setLoadingData(true);
     try {
-      const [bookingsResponse, overridesResponse] = await Promise.all([
-        fetch("/api/bookings", { cache: "no-store" }),
-        fetch("/api/admin/overrides", { cache: "no-store" }),
-      ]);
+      const overridesResponse = await fetch("/api/admin/overrides", { cache: "no-store" });
+      const overridesJson = await safeJson<OverridesResponse>(overridesResponse);
+      if (!overridesResponse.ok) {
+        throw new Error(overridesJson?.error || "Gagal memuat override manual.");
+      }
 
-      const bookingsJson = (await bookingsResponse.json()) as BookingResponse;
-      if (!bookingsResponse.ok) throw new Error(bookingsJson.error || "Gagal memuat booking.");
-      setCameraBookings(bookingsJson.cameraBookings || {});
-
-      const overridesJson = (await overridesResponse.json()) as OverridesResponse;
-      if (!overridesResponse.ok) throw new Error("Gagal memuat override manual.");
-      setManualOverrides(overridesJson.overrides || {});
+      const nextOverrides = overridesJson?.overrides || {};
+      setManualOverrides(nextOverrides);
       setMessage(null);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Gagal memuat data admin.");
@@ -134,9 +181,9 @@ export default function AdminPage() {
     async function checkSession() {
       try {
         const response = await fetch("/api/admin/session", { cache: "no-store" });
-        const json = (await response.json()) as SessionResponse;
+        const json = await safeJson<SessionResponse>(response);
         if (!active) return;
-        const ok = Boolean(json.authenticated);
+        const ok = Boolean(json?.authenticated);
         setAuthenticated(ok);
         if (ok) {
           try {
@@ -159,16 +206,6 @@ export default function AdminPage() {
     };
   }, [loadAdminData]);
 
-  useEffect(() => {
-    if (!selectedDateKey) return;
-    const next = selectedMerged || emptyStatus();
-    setDraftStatus({
-      nikon: Boolean(next.nikon),
-      casio: Boolean(next.casio),
-      kodak: Boolean(next.kodak),
-    });
-  }, [selectedDateKey, selectedMerged]);
-
   async function handleLogin(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsLoggingIn(true);
@@ -181,8 +218,8 @@ export default function AdminPage() {
         body: JSON.stringify({ username, password }),
       });
 
-      const json = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(json.error || "Login gagal.");
+      const json = await safeJson<{ error?: string }>(response);
+      if (!response.ok) throw new Error(json?.error || "Login gagal.");
 
       setAuthenticated(true);
       try {
@@ -217,13 +254,17 @@ export default function AdminPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ dateKey: selectedDateKey, status: draftStatus }),
       });
-      const json = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(json.error || "Gagal menyimpan override.");
+      const json = await safeJson<{ error?: string; overrides?: ManualOverrides }>(response);
+      if (!response.ok) throw new Error(json?.error || "Gagal menyimpan override.");
 
-      try {
-        await loadAdminData();
-      } catch {
-        // handled via message state
+      if (json?.overrides) {
+        setManualOverrides(json.overrides);
+      } else {
+        try {
+          await loadAdminData();
+        } catch {
+          // handled via message state
+        }
       }
       setMessage("Status berhasil disimpan.");
     } catch (error) {
@@ -244,13 +285,17 @@ export default function AdminPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ dateKey: selectedDateKey, remove: true }),
       });
-      const json = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(json.error || "Gagal menghapus override.");
+      const json = await safeJson<{ error?: string; overrides?: ManualOverrides }>(response);
+      if (!response.ok) throw new Error(json?.error || "Gagal menghapus override.");
 
-      try {
-        await loadAdminData();
-      } catch {
-        // handled via message state
+      if (json?.overrides) {
+        setManualOverrides(json.overrides);
+      } else {
+        try {
+          await loadAdminData();
+        } catch {
+          // handled via message state
+        }
       }
       setMessage("Override manual dihapus.");
     } catch (error) {
@@ -403,14 +448,22 @@ export default function AdminPage() {
               }
 
               const dateKey = toDateKey(year, month, cell.day);
-              const dayType = getDayType(cameraBookings[dateKey]);
+              const dayType = getDayType(mergedBookings[dateKey]);
               const isSelected = selectedDateKey === dateKey;
 
               return (
                 <button
                   key={cell.key}
                   type="button"
-                  onClick={() => setSelectedDateKey(dateKey)}
+                  onClick={() => {
+                    setSelectedDateKey(dateKey);
+                    const next = mergedBookings[dateKey] || emptyStatus();
+                    setDraftStatus({
+                      nikon: Boolean(next.nikon),
+                      casio: Boolean(next.casio),
+                      kodak: Boolean(next.kodak),
+                    });
+                  }}
                   className={`h-[4.6rem] rounded-lg border p-1.5 text-left transition duration-200 hover:scale-[1.03] sm:h-20 sm:rounded-xl sm:p-2 ${getDayTypeClass(
                     dayType
                   )} ${isSelected ? "ring-2 ring-pink-400" : ""}`}
