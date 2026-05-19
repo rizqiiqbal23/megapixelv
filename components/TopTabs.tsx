@@ -1,5 +1,6 @@
 ﻿type TopTabsProps = {
-  active: "pricelist" | "rules" | null;
+  active: "cara-book" | "pricelist" | "rules" | null;
+  onOpenCaraBook: () => void;
   onOpenPricelist: () => void;
   onOpenRules: () => void;
 };
@@ -20,14 +21,14 @@ function TabButton({ label, active, onClick }: { label: string; active: boolean;
   );
 }
 
-export default function TopTabs({ active, onOpenPricelist, onOpenRules }: TopTabsProps) {
+export default function TopTabs({ active, onOpenCaraBook, onOpenPricelist, onOpenRules }: TopTabsProps) {
   return (
     <div className="mx-auto mt-3 w-full max-w-[420px] px-3">
-      <div className="flex h-[44px] items-center justify-center gap-2 rounded-full border border-pink-100 bg-white shadow-sm">
+      <div className="flex h-[44px] items-center justify-center gap-2 rounded-full border border-pink-100 bg-white shadow-sm overflow-x-auto whitespace-nowrap">
+        <TabButton label="Cara Book" active={active === "cara-book"} onClick={onOpenCaraBook} />
         <TabButton label="Pricelist" active={active === "pricelist"} onClick={onOpenPricelist} />
         <TabButton label="Peraturan Booking" active={active === "rules"} onClick={onOpenRules} />
       </div>
     </div>
   );
 }
-

@@ -3,6 +3,7 @@
 import { Poppins } from "next/font/google";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import BookingCalendar, { type CameraBookings } from "@/components/BookingCalendar";
+import CaraBookModal from "@/components/CaraBookModal";
 import Header from "@/components/Header";
 import PricelistModal from "@/components/PricelistModal";
 import RulesModal from "@/components/RulesModal";
@@ -84,7 +85,8 @@ export default function Home() {
   const [showStickyBook, setShowStickyBook] = useState(false);
   const [showPricelist, setShowPricelist] = useState(false);
   const [showRules, setShowRules] = useState(false);
-  const [activeTab, setActiveTab] = useState<"pricelist" | "rules" | null>(null);
+  const [showCaraBook, setShowCaraBook] = useState(false);
+  const [activeTab, setActiveTab] = useState<"cara-book" | "pricelist" | "rules" | null>(null);
 
   const loadBookings = useCallback(async (signal?: AbortSignal) => {
     if (isFetchingRef.current) return;
@@ -192,6 +194,11 @@ export default function Home() {
     });
   }
 
+  function openCaraBookModal() {
+    setActiveTab("cara-book");
+    setShowCaraBook(true);
+  }
+
   function openPricelistModal() {
     setActiveTab("pricelist");
     setShowPricelist(true);
@@ -227,7 +234,7 @@ export default function Home() {
 
       <Header />
 
-      <TopTabs active={activeTab} onOpenPricelist={openPricelistModal} onOpenRules={openRulesModal} />
+      <TopTabs active={activeTab} onOpenCaraBook={openCaraBookModal} onOpenPricelist={openPricelistModal} onOpenRules={openRulesModal} />
 
       <div className="mx-auto mt-3 w-full max-w-[420px] space-y-3 px-3">
         <BookingCalendar
@@ -279,6 +286,13 @@ export default function Home() {
         selectedCamera={selectedCamera}
       />
 
+      <CaraBookModal
+        open={showCaraBook}
+        onClose={() => {
+          setShowCaraBook(false);
+          setActiveTab(null);
+        }}
+      />
       <PricelistModal
         open={showPricelist}
         onClose={() => {
@@ -297,4 +311,3 @@ export default function Home() {
     </main>
   );
 }
-
