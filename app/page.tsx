@@ -19,17 +19,17 @@ const BOOKINGS_UPDATED_AT_KEY = "booking_cache_updated_at_v1";
 
 const WEEK_DAYS = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
 const RULES = [
-  "COD maksimal menunggu 20 menit, lebih dari itu dinyatakan hangus.",
-  "Untuk pengembalian maksimal keterlambatan 30 menit, lebih dari itu bayar 10k/ jam.",
-  "DILARANG KERAS DIGICAM BASAH, BARET, MAUPUN RUSAK, diharap untuk HATI HATI dalam menaruh & menggunakan kamera. Apabila terdapat kerusakan / kehilangan maka cust wajib membayar seluruh biaya perbaikan / mengganti dengan kamera yang sama.",
-  "JANGAN PEGANG LENSA CAMERA apalagi memaksa lensa masuk.",
-  "Dilarang meletakkan kamera didalam jok motor & jangan terhimpit barang apapun.",
-  "Apabila main ke alam, pastikan kamera tidak terkena debu, kotoran & air!",
-  "Pastikan kamera tidak dipakai saat turun hujan!",
-  "Sudah dapat card reader jadi bisa langsung mindah file-nya sendiri, tapi apabila ingin dibantu memindahkan filenya terdapat fee tambahan sebesar 5k.",
-  "Untuk pelunasan wajib di transfer sebelum mengambil kamera.",
-  "Membawa jaminan KTP/SIM/KTM.",
-  "Membawa kepala charger! :)",
+  "COD maksimal menunggu 20 menit. Jika melebihi batas waktu tersebut, booking dianggap hangus.",
+  "Pengembalian kamera maksimal terlambat 30 menit. Jika lebih dari itu, akan dikenakan biaya tambahan sebesar Rp10.000 per jam.",
+  "DILARANG KERAS DIGICAM BASAH, BARET, MAUPUN RUSAK. Harap berhati-hati saat menggunakan dan menyimpan kamera. Apabila terjadi kerusakan atau kehilangan, penyewa wajib menanggung seluruh biaya perbaikan atau mengganti dengan kamera yang sama.",
+  "JANGAN MENYENTUH LENSA KAMERA, apalagi memaksa lensa untuk masuk.",
+  "Dilarang meletakkan kamera di dalam jok motor atau di tempat yang dapat membuat kamera terhimpit oleh barang lain.",
+  "Jika digunakan di alam terbuka, pastikan kamera tidak terkena debu, kotoran, maupun air.",
+  "Jangan gunakan kamera saat hujan atau dalam kondisi cuaca basah.",
+  "Setiap penyewaan sudah termasuk card reader, sehingga file foto dapat dipindahkan sendiri. Jika ingin dibantu memindahkan file, akan dikenakan biaya tambahan sebesar Rp5.000.",
+  "Pelunasan wajib dilakukan melalui transfer sebelum pengambilan kamera.",
+  "Wajib membawa jaminan berupa KTP, SIM, atau KTM.",
+  "Mohon membawa kepala charger.",
 ];
 
 function toDateKey(year: number, month: number, day: number): string {
@@ -252,18 +252,35 @@ export default function Home() {
         <span className="absolute bottom-5 right-6 animate-pulse text-xl rotate-[14deg] sm:bottom-10 sm:right-10 sm:text-2xl">🌸</span>
       </div>
       <header className="sticky top-0 z-20 border-b border-pink-100 bg-white/90 backdrop-blur">
-        <div className="mx-auto flex min-h-20 w-full max-w-[1720px] items-center justify-center px-4 py-2 sm:px-8">
+        <div className="relative mx-auto flex min-h-20 w-full max-w-[1720px] items-center justify-center px-4 py-2 sm:px-8">
           <div className="w-full text-center">
             <div className="flex items-center justify-center gap-2 text-zinc-800">
               <span className="text-pink-300">✦</span>
-              <h1 className="text-2xl font-semibold tracking-[0.08em] sm:text-5xl sm:tracking-[0.04em] md:text-[64px]">MEGAPIXELV</h1>
+              <div className="flex items-center justify-center gap-2 sm:gap-3">
+                <img src="/image/logo.png" alt="Megapixelv Logo" className="h-7 w-7 object-contain sm:h-12 sm:w-12 md:h-14 md:w-14" />
+                <h1 className="text-2xl font-semibold tracking-[0.08em] sm:text-5xl sm:tracking-[0.04em] md:text-[64px]">MEGAPIXELV</h1>
+              </div>
               <span className="text-pink-300">✦</span>
             </div>
+          </div>
+          <div className="absolute -bottom-4 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full border border-pink-100 bg-white/80 px-2 py-1 shadow-[0_8px_20px_rgba(247,108,156,0.18)] backdrop-blur">
+            <Link
+              href="/pricelist"
+              className="inline-flex items-center rounded-full px-3 py-1 text-[11px] font-medium text-pink-700 transition hover:bg-pink-50/60 sm:px-4 sm:py-1.5 sm:text-xs"
+            >
+              Pricelist
+            </Link>
+            <Link
+              href="#peraturan-booking"
+              className="inline-flex items-center rounded-full px-3 py-1 text-[11px] font-medium text-pink-700 transition hover:bg-pink-50/60 sm:px-4 sm:py-1.5 sm:text-xs"
+            >
+              Peraturan Booking
+            </Link>
           </div>
         </div>
       </header>
 
-      <div className="mx-auto grid w-full max-w-[1720px] grid-cols-1 gap-4 p-3 sm:p-6 lg:h-[calc(100vh-80px)] lg:grid-cols-[1.15fr_0.95fr] lg:overflow-hidden">
+      <div className="mx-auto grid w-full max-w-[1720px] grid-cols-1 gap-4 p-3 pt-8 sm:p-6 sm:pt-10 lg:h-[calc(100vh-80px)] lg:grid-cols-[1.15fr_0.95fr] lg:overflow-hidden">
         <section className="relative rounded-[24px] border border-pink-100 bg-white p-3 shadow-[0_8px_24px_rgba(247,108,156,0.08)] sm:p-5">
           <span className="pointer-events-none absolute -left-2 -top-2 animate-pulse text-lg rotate-[-18deg] sm:-left-3 sm:-top-3 sm:text-xl">🎀</span>
           <span className="pointer-events-none absolute -right-2 -top-2 animate-pulse text-lg rotate-[16deg] sm:-right-3 sm:-top-3 sm:text-xl">💖</span>
@@ -378,7 +395,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="flex min-h-0 flex-col rounded-[24px] border border-pink-100 bg-white p-3 shadow-[0_8px_24px_rgba(247,108,156,0.08)] sm:p-5">
+        <section id="peraturan-booking" className="flex min-h-0 flex-col rounded-[24px] border border-pink-100 bg-white p-3 shadow-[0_8px_24px_rgba(247,108,156,0.08)] sm:p-5">
           <div className="mb-3 flex items-center justify-between text-pink-600">
             <div className="flex items-center gap-2">
               <span className="text-xl">🧾</span>
@@ -483,4 +500,3 @@ export default function Home() {
     </main>
   );
 }
-
