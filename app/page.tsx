@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Poppins } from "next/font/google";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -81,6 +81,7 @@ export default function Home() {
   });
 
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedTime, setSelectedTime] = useState("00:00");
   const [selectedCamera, setSelectedCamera] = useState<CameraKey | null>(null);
   const [showStickyBook, setShowStickyBook] = useState(false);
   const [showPricelist, setShowPricelist] = useState(false);
@@ -189,6 +190,7 @@ export default function Home() {
     }
     setSelectedDate(dateKey);
     setSelectedCamera(null);
+    setSelectedTime("00:00");
     requestAnimationFrame(() => {
       selectedCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
@@ -251,6 +253,8 @@ export default function Home() {
             <SelectedDateCard
               selectedDateLabel={toReadableDate(selectedDate)}
               selectedDateRaw={selectedDate}
+              selectedTime={selectedTime}
+              onChangeTime={setSelectedTime}
               cameraStates={cameraStates}
               selectedCamera={selectedCamera}
               onSelectCamera={setSelectedCamera}
@@ -283,6 +287,7 @@ export default function Home() {
         visible={showStickyBook}
         selectedDateLabel={selectedDate ? toReadableDate(selectedDate) : ""}
         selectedDateRaw={selectedDate || ""}
+        selectedTime={selectedTime}
         selectedCamera={selectedCamera}
       />
 
