@@ -432,11 +432,23 @@ export async function GET(request: NextRequest) {
   }
 
   const refreshRequested = request.nextUrl.searchParams.get("refresh") === "1";
+  const metaRequested = request.nextUrl.searchParams.get("meta") === "1";
   const bypassCooldownRequested = request.nextUrl.searchParams.get("nocooldown") === "1";
   const token = request.cookies.get(getSessionCookieName())?.value;
   const isAdmin = token ? verifySessionToken(token) : false;
   const allowBypassCooldown = bypassCooldownRequested && isAdmin;
   const forceRefreshRequested = refreshRequested;
+
+  if (metaRequested) {
+    const snapshot = await readBookingsSnapshot();
+    const lastUpdatedAt = snapshot ? await resolveLastDataUpdatedAt(snapshot.lastSyncedAt) : null;
+
+    return NextResponse.json({
+      lastUpdatedAt,
+      fetchSource: snapshot ? "meta-snapshot" : "meta-empty",
+      hasSnapshot: Boolean(snapshot),
+    });
+  }
 
   if (
     forceRefreshRequested &&

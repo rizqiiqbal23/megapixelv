@@ -54,6 +54,7 @@ function toReadableDate(dateKey: string): string {
 export default function Home() {
   const isFetchingRef = useRef(false);
   const selectedCardRef = useRef<HTMLDivElement | null>(null);
+  const lastUpdatedAtRef = useRef<string | null>(null);
 
   const scrollPageTo = useCallback((target: "top" | "bottom") => {
     if (typeof window === "undefined") return;
@@ -126,6 +127,10 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    lastUpdatedAtRef.current = lastUpdatedAt;
+  }, [lastUpdatedAt]);
+
+  useEffect(() => {
     const controller = new AbortController();
     const id = setTimeout(() => void loadBookings(controller.signal), 0);
     const interval = setInterval(() => void loadBookings(), 3 * 60 * 60 * 1000);
@@ -134,6 +139,28 @@ export default function Home() {
       clearTimeout(id);
       clearInterval(interval);
     };
+  }, [loadBookings]);
+
+  useEffect(() => {
+    const checkForRemoteUpdate = async () => {
+      try {
+        const response = await fetch("/api/bookings?meta=1", { cache: "no-store" });
+        if (!response.ok) return;
+
+        const json = (await response.json()) as Pick<BookingResponse, "lastUpdatedAt">;
+        const remoteLastUpdatedAt = json.lastUpdatedAt || null;
+        if (!remoteLastUpdatedAt) return;
+
+        if (remoteLastUpdatedAt !== lastUpdatedAtRef.current) {
+          await loadBookings();
+        }
+      } catch {
+        // ignore meta polling failure
+      }
+    };
+
+    const interval = window.setInterval(() => void checkForRemoteUpdate(), 20 * 1000);
+    return () => window.clearInterval(interval);
   }, [loadBookings]);
 
   useEffect(() => {
