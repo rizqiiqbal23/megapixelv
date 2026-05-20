@@ -10,26 +10,30 @@ type PhotoGalleryModalProps = {
 const CAMERA_GROUPS = [
   {
     label: "Nikon",
-    photos: [
-      {
-        id: "1eHpT3MOSaNPcitJc6rBG-i2Lkch7pQle",
-        alt: "Nikon sample photo",
-      },
-    ],
+    photos: [] as Array<{
+      id: string;
+      alt: string;
+    }>,
     accent: "from-emerald-100 to-emerald-50",
     border: "border-emerald-200",
     text: "text-emerald-700",
   },
   {
     label: "Kodak",
-    photos: [],
+    photos: [] as Array<{
+      id: string;
+      alt: string;
+    }>,
     accent: "from-amber-100 to-amber-50",
     border: "border-amber-200",
     text: "text-amber-700",
   },
   {
     label: "Casio",
-    photos: [],
+    photos: [] as Array<{
+      id: string;
+      alt: string;
+    }>,
     accent: "from-rose-100 to-rose-50",
     border: "border-rose-200",
     text: "text-rose-700",

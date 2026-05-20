@@ -7,6 +7,7 @@ const WEEK_DAYS = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
 const ICON_AVAILABLE = String.fromCodePoint(0x2705);
 const ICON_LIMITED = String.fromCodePoint(0x23f3);
 const ICON_FULL = String.fromCodePoint(0x26d4);
+const ICON_PROMO = String.fromCodePoint(0x1f4b0);
 
 function toDateKey(year: number, month: number, day: number): string {
   return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
@@ -155,8 +156,8 @@ export default function BookingCalendar({
               }`}
             >
               {hasPromo ? (
-                <span className="absolute -right-1 top-1 rotate-45 rounded-full bg-gradient-to-r from-[#FF7BA5] to-[#F64F8B] px-1 py-0.5 text-[6px] font-bold uppercase tracking-[0.18em] text-white shadow-sm">
-                  Promo
+                <span className="absolute right-1 top-1 flex h-9 w-4 items-center justify-center rounded-b-xl rounded-t-none bg-gradient-to-b from-[#FF7BA5] to-[#F64F8B] text-[8px] text-white shadow-sm">
+                  {ICON_PROMO}
                 </span>
               ) : null}
               <div className="text-sm font-semibold leading-none">{cell.day}</div>
