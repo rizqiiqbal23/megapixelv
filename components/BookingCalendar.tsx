@@ -155,7 +155,7 @@ export default function BookingCalendar({
               }`}
             >
               {hasPromo ? (
-                <span className="absolute right-1 top-1 rounded-full bg-gradient-to-r from-[#FF7BA5] to-[#F64F8B] px-1.5 py-0.5 text-[7px] font-bold uppercase tracking-[0.18em] text-white">
+                <span className="absolute -right-1 top-1 rotate-45 rounded-full bg-gradient-to-r from-[#FF7BA5] to-[#F64F8B] px-1 py-0.5 text-[6px] font-bold uppercase tracking-[0.18em] text-white shadow-sm">
                   Promo
                 </span>
               ) : null}
