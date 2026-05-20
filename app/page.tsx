@@ -11,10 +11,16 @@ import SelectedDateCard from "@/components/SelectedDateCard";
 import StickyBookButton from "@/components/StickyBookButton";
 import TopTabs from "@/components/TopTabs";
 import { type CameraKey } from "@/components/booking-form";
+import { type PromoCampaign } from "@/lib/promo-data";
 
 type BookingResponse = {
   cameraBookings?: CameraBookings;
   lastUpdatedAt?: string;
+  error?: string;
+};
+
+type PromoResponse = {
+  rows?: PromoCampaign[];
   error?: string;
 };
 
@@ -92,6 +98,7 @@ export default function Home() {
 
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [promoDates, setPromoDates] = useState<string[]>([]);
   const [activeMonth, setActiveMonth] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
@@ -133,6 +140,21 @@ export default function Home() {
     } finally {
       isFetchingRef.current = false;
       if (!signal?.aborted) setIsLoading(false);
+    }
+  }, []);
+
+  const loadPromos = useCallback(async (signal?: AbortSignal) => {
+    try {
+      const response = await fetch("/api/promo", { cache: "no-store", signal });
+      const json = (await response.json()) as PromoResponse;
+      if (!response.ok) throw new Error(json.error || "Gagal memuat promo.");
+
+      const nextPromoDates = (json.rows || [])
+        .filter((row) => row.active && row.quotaRemaining > 0)
+        .map((row) => row.dateKey);
+      setPromoDates(nextPromoDates);
+    } catch {
+      // ignore promo loading failure
     }
   }, []);
 
@@ -187,6 +209,16 @@ export default function Home() {
       clearInterval(interval);
     };
   }, [loadBookings]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void loadPromos(controller.signal);
+    const interval = window.setInterval(() => void loadPromos(), 60 * 1000);
+    return () => {
+      controller.abort();
+      window.clearInterval(interval);
+    };
+  }, [loadPromos]);
 
   useEffect(() => {
     const checkForRemoteUpdate = async () => {
@@ -354,14 +386,15 @@ export default function Home() {
           <TopTabs active={activeTab === "cara-book" ? "cara-book" : null} onOpenCaraBook={openCaraBookModal} />
 
           <div className="mt-3 space-y-3">
-            <BookingCalendar
-              activeMonth={activeMonth}
-              setActiveMonth={setActiveMonth}
-              cameraBookings={cameraBookings}
-              selectedDate={selectedDate}
-              onSelectDate={handleSelectDate}
-              lastUpdatedAt={lastUpdatedAt}
-            />
+          <BookingCalendar
+            activeMonth={activeMonth}
+            setActiveMonth={setActiveMonth}
+            cameraBookings={cameraBookings}
+            promoDates={promoDates}
+            selectedDate={selectedDate}
+            onSelectDate={handleSelectDate}
+            lastUpdatedAt={lastUpdatedAt}
+          />
 
             {selectedDate && (
               <SelectedDateCard

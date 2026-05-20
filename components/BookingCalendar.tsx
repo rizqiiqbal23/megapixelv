@@ -49,6 +49,7 @@ type BookingCalendarProps = {
   activeMonth: Date;
   setActiveMonth: (next: Date) => void;
   cameraBookings: CameraBookings;
+  promoDates: string[];
   selectedDate: string | null;
   onSelectDate: (dateKey: string) => void;
   lastUpdatedAt: string | null;
@@ -58,6 +59,7 @@ export default function BookingCalendar({
   activeMonth,
   setActiveMonth,
   cameraBookings,
+  promoDates,
   selectedDate,
   onSelectDate,
   lastUpdatedAt,
@@ -77,6 +79,7 @@ export default function BookingCalendar({
   const canGoNext = activeMonth.getTime() < maxMonthStart.getTime();
 
   const cells = buildCalendarDays(year, month);
+  const promoSet = new Set(promoDates);
 
   return (
     <section className="rounded-3xl border border-pink-100 bg-white p-4 shadow-[0_10px_25px_rgba(246,79,139,0.08)]">
@@ -120,6 +123,7 @@ export default function BookingCalendar({
         <p><span className="font-semibold text-emerald-600">Available</span> semua slot kosong.</p>
         <p><span className="font-semibold text-amber-600">Limited</span> sebagian kamera sudah terisi.</p>
         <p><span className="font-semibold text-rose-600">Full</span> semua kamera terisi.</p>
+        <p className="mt-2 font-medium text-pink-600">Yang masuk kalender hanya yang sudah DP.</p>
       </div>
 
       <div className="mb-2 grid grid-cols-7 gap-1 text-center text-[11px] font-semibold text-pink-700">
@@ -137,18 +141,26 @@ export default function BookingCalendar({
           const dateKey = toDateKey(year, month, cell.day);
           const dayType = getDayType(cameraBookings[dateKey]);
           const isSelected = selectedDate === dateKey;
+          const hasPromo = promoSet.has(dateKey);
 
           return (
             <button
               key={cell.key}
               type="button"
               onClick={() => onSelectDate(dateKey)}
-              className={`h-14 rounded-xl border p-1 text-left transition ${getDayTypeClass(dayType)} hover:scale-[1.03] ${
+              className={`relative h-14 overflow-hidden rounded-xl border p-1 text-left transition ${getDayTypeClass(dayType)} hover:scale-[1.03] ${
+                hasPromo ? "border-pink-400 bg-[#FFF1F8] shadow-[0_0_0_2px_rgba(255,123,165,0.14)]" : ""
+              } ${
                 isSelected ? "border-pink-400 ring-2 ring-pink-300 shadow-[0_0_0_3px_rgba(246,79,139,0.14)] scale-[1.03]" : ""
               }`}
             >
+              {hasPromo ? (
+                <span className="absolute right-1 top-1 rounded-full bg-gradient-to-r from-[#FF7BA5] to-[#F64F8B] px-1.5 py-0.5 text-[7px] font-bold uppercase tracking-[0.18em] text-white">
+                  Promo
+                </span>
+              ) : null}
               <div className="text-sm font-semibold leading-none">{cell.day}</div>
-              <div className="mt-1 text-xs">{getDayTypeIcon(dayType)}</div>
+              <div className={`mt-1 text-xs ${hasPromo ? "pr-10" : ""}`}>{getDayTypeIcon(dayType)}</div>
             </button>
           );
         })}
