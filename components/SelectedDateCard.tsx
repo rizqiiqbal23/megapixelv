@@ -81,16 +81,12 @@ export default function SelectedDateCard({
           <label className="block text-xs font-medium text-pink-700">Jam sewa</label>
         </div>
         <button
-          type="button"
-          onClick={() => {
-            setIsTimePickerOpen((value) => {
-              const nextValue = !value;
-              if (nextValue) onOpenTimePicker();
-              return nextValue;
-            });
-          }}
-          className="flex h-12 w-full items-center justify-between rounded-2xl border border-pink-200 bg-white px-4 text-sm font-medium text-pink-700 shadow-sm transition hover:border-pink-300 hover:bg-pink-50 focus:outline-none focus:ring-2 focus:ring-pink-200"
-        >
+        type="button"
+        onClick={() => {
+          setIsTimePickerOpen((value) => !value);
+        }}
+        className="flex h-12 w-full items-center justify-between rounded-2xl border border-pink-200 bg-white px-4 text-sm font-medium text-pink-700 shadow-sm transition hover:border-pink-300 hover:bg-pink-50 focus:outline-none focus:ring-2 focus:ring-pink-200"
+      >
           <span>{selectedTime || "00:00"}</span>
           <span className="rounded-full bg-pink-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-pink-700">
             {EDIT_LABEL}

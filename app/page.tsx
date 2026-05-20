@@ -54,13 +54,20 @@ function toReadableDate(dateKey: string): string {
 export default function Home() {
   const isFetchingRef = useRef(false);
   const homeShellRef = useRef<HTMLDivElement | null>(null);
-  const selectedCardRef = useRef<HTMLDivElement | null>(null);
+  const scrollViewportRef = useRef<HTMLDivElement | null>(null);
   const lastUpdatedAtRef = useRef<string | null>(null);
   const homeBaselineHeightRef = useRef<number | null>(null);
   const [homeScale, setHomeScale] = useState(1);
 
   const scrollPageTo = useCallback((target: "top" | "bottom") => {
     if (typeof window === "undefined") return;
+    const viewport = scrollViewportRef.current;
+    if (viewport) {
+      const top = target === "top" ? 0 : viewport.scrollHeight;
+      viewport.scrollTo({ top, behavior: "smooth" });
+      return;
+    }
+
     const top = target === "top" ? 0 : document.documentElement.scrollHeight;
     window.scrollTo({ top, behavior: "smooth" });
   }, []);
@@ -144,7 +151,8 @@ export default function Home() {
       const shell = homeShellRef.current;
       if (!shell) return;
 
-      const availableHeight = Math.max(0, window.innerHeight - 8);
+      const viewport = scrollViewportRef.current;
+      const availableHeight = Math.max(0, (viewport?.clientHeight ?? window.innerHeight) - 8);
       if (homeBaselineHeightRef.current === null) {
         homeBaselineHeightRef.current = shell.scrollHeight;
       }
@@ -224,8 +232,10 @@ export default function Home() {
 
   useEffect(() => {
     const onScroll = () => {
+      const viewport = scrollViewportRef.current;
+      const scrollTop = viewport ? viewport.scrollTop : window.scrollY;
       const shouldShow =
-        window.scrollY > 200 &&
+        scrollTop > 200 &&
         Boolean(selectedDate) &&
         Boolean(selectedCamera) &&
         window.innerWidth < 640;
@@ -249,20 +259,14 @@ export default function Home() {
 
     if (shouldLockScroll) {
       body.style.overflow = "hidden";
-      body.style.touchAction = "none";
-      body.style.overscrollBehavior = "none";
       html.style.overflow = "hidden";
     } else {
       body.style.overflow = "";
-      body.style.touchAction = "";
-      body.style.overscrollBehavior = "";
       html.style.overflow = "";
     }
 
     return () => {
       body.style.overflow = "";
-      body.style.touchAction = "";
-      body.style.overscrollBehavior = "";
       html.style.overflow = "";
     };
   }, [selectedDate, showCaraBook, showPricelist, showRules]);
@@ -288,21 +292,14 @@ export default function Home() {
     setSelectedDate(dateKey);
     setSelectedCamera(null);
     setSelectedTime("00:00");
-    if (typeof window !== "undefined" && window.innerWidth >= 640) {
-      requestAnimationFrame(() => {
-        selectedCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-        scrollPageTo("bottom");
-      });
-    }
+    requestAnimationFrame(() => scrollPageTo("bottom"));
   }
 
   function handleCloseSelectedDate() {
     setSelectedDate(null);
     setSelectedCamera(null);
     setSelectedTime("00:00");
-    if (typeof window !== "undefined" && window.innerWidth >= 640) {
-      setTimeout(() => scrollPageTo("top"), 0);
-    }
+    requestAnimationFrame(() => scrollPageTo("top"));
   }
 
   function openCaraBookModal() {
@@ -346,24 +343,27 @@ export default function Home() {
       <Header />
 
       <div
-        ref={homeShellRef}
-        className="mx-auto w-full max-w-[420px] origin-top px-3 pt-0 transition-transform duration-150 sm:pt-0"
-        style={homeScale < 1 ? { transform: `scale(${homeScale})` } : undefined}
+        ref={scrollViewportRef}
+        className="h-[calc(100dvh-60px)] w-full overflow-y-auto overscroll-contain lg:h-auto lg:overflow-visible"
       >
-        <TopTabs active={activeTab === "cara-book" ? "cara-book" : null} onOpenCaraBook={openCaraBookModal} />
+        <div
+          ref={homeShellRef}
+          className="mx-auto w-full max-w-[420px] origin-top px-3 pt-0 transition-transform duration-150 sm:pt-0"
+          style={homeScale < 1 ? { transform: `scale(${homeScale})` } : undefined}
+        >
+          <TopTabs active={activeTab === "cara-book" ? "cara-book" : null} onOpenCaraBook={openCaraBookModal} />
 
-        <div className="mt-3 space-y-3">
-          <BookingCalendar
-            activeMonth={activeMonth}
-            setActiveMonth={setActiveMonth}
-            cameraBookings={cameraBookings}
-            selectedDate={selectedDate}
-            onSelectDate={handleSelectDate}
-            lastUpdatedAt={lastUpdatedAt}
-          />
+          <div className="mt-3 space-y-3">
+            <BookingCalendar
+              activeMonth={activeMonth}
+              setActiveMonth={setActiveMonth}
+              cameraBookings={cameraBookings}
+              selectedDate={selectedDate}
+              onSelectDate={handleSelectDate}
+              lastUpdatedAt={lastUpdatedAt}
+            />
 
-          {selectedDate && (
-            <div ref={selectedCardRef}>
+            {selectedDate && (
               <SelectedDateCard
                 selectedDateLabel={toReadableDate(selectedDate)}
                 selectedDateRaw={selectedDate}
@@ -375,28 +375,28 @@ export default function Home() {
                 selectedCamera={selectedCamera}
                 onSelectCamera={setSelectedCamera}
               />
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={openPricelistModal}
+                className="rounded-2xl bg-white px-3 py-3 text-sm font-medium text-pink-700 shadow-sm"
+              >
+                {`Pricelist ${String.fromCodePoint(0x1f4b8)}`}
+              </button>
+              <button
+                type="button"
+                onClick={openRulesModal}
+                className="rounded-2xl bg-white px-3 py-3 text-sm font-medium text-pink-700 shadow-sm"
+              >
+                {`Peraturan Booking ${String.fromCodePoint(0x2757)}`}
+              </button>
             </div>
-          )}
 
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={openPricelistModal}
-              className="rounded-2xl bg-white px-3 py-3 text-sm font-medium text-pink-700 shadow-sm"
-            >
-              {`Pricelist ${String.fromCodePoint(0x1f4b8)}`}
-            </button>
-            <button
-              type="button"
-              onClick={openRulesModal}
-              className="rounded-2xl bg-white px-3 py-3 text-sm font-medium text-pink-700 shadow-sm"
-            >
-              {`Peraturan Booking ${String.fromCodePoint(0x2757)}`}
-            </button>
+            {error && <p className="rounded-2xl border border-pink-200 bg-pink-50 px-3 py-2 text-sm text-pink-700">{error}</p>}
+            {isLoading && <p className="text-center text-xs text-zinc-500">Memuat data booking...</p>}
           </div>
-
-          {error && <p className="rounded-2xl border border-pink-200 bg-pink-50 px-3 py-2 text-sm text-pink-700">{error}</p>}
-          {isLoading && <p className="text-center text-xs text-zinc-500">Memuat data booking...</p>}
         </div>
       </div>
 
