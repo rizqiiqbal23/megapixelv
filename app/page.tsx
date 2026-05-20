@@ -152,14 +152,14 @@ export default function Home() {
         if (!remoteLastUpdatedAt) return;
 
         if (remoteLastUpdatedAt !== lastUpdatedAtRef.current) {
-          await loadBookings();
+          window.location.reload();
         }
       } catch {
         // ignore meta polling failure
       }
     };
 
-    const interval = window.setInterval(() => void checkForRemoteUpdate(), 20 * 1000);
+    const interval = window.setInterval(() => void checkForRemoteUpdate(), 10 * 1000);
     return () => window.clearInterval(interval);
   }, [loadBookings]);
 
