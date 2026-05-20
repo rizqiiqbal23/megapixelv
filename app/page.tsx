@@ -344,13 +344,13 @@ export default function Home() {
         <span className="absolute right-4 bottom-8 text-pink-400/80 animate-[floatSoft_6.9s_ease-in-out_infinite_0.2s]">🍒</span>
       </div>
 
+      <Header />
+
       <div
         ref={homeShellRef}
         className="mx-auto w-full max-w-[420px] origin-top px-3 pt-0 transition-transform duration-150 sm:pt-0"
         style={homeScale < 1 ? { transform: `scale(${homeScale})` } : undefined}
       >
-        <Header />
-
         <TopTabs active={activeTab === "cara-book" ? "cara-book" : null} onOpenCaraBook={openCaraBookModal} />
 
         <div className="mt-3 space-y-3">
