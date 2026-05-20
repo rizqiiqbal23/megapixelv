@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { CAMERAS, type CameraName, type CameraStatus } from "@/lib/cameras";
 import { type ManualOverrides } from "@/lib/cameras";
 import { cloneDefaultPricelistRows, type PricelistRow } from "@/lib/pricelist-data";
+import PromoEditor from "@/components/PromoEditor";
 
 type CameraBookings = Record<string, CameraStatus>;
 
@@ -115,7 +116,7 @@ async function safeJson<T>(response: Response): Promise<T | null> {
 export default function AdminPage() {
   const [checkingSession, setCheckingSession] = useState(true);
   const [authenticated, setAuthenticated] = useState(false);
-  const [adminView, setAdminView] = useState<"override" | "pricelist">("override");
+  const [adminView, setAdminView] = useState<"override" | "pricelist" | "promo">("override");
   const [navOpen, setNavOpen] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -297,7 +298,7 @@ export default function AdminPage() {
     setMessage(null);
   }
 
-  function switchAdminView(view: "override" | "pricelist") {
+  function switchAdminView(view: "override" | "pricelist" | "promo") {
     setAdminView(view);
     setNavOpen(false);
   }
@@ -496,6 +497,15 @@ export default function AdminPage() {
                   >
                     Pricelist
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => switchAdminView("promo")}
+                    className={`block w-full px-4 py-3 text-left text-sm transition ${
+                      adminView === "promo" ? "bg-pink-50 text-pink-700" : "text-zinc-700 hover:bg-pink-50"
+                    }`}
+                  >
+                    Promo
+                  </button>
                 </div>
               ) : null}
             </div>
@@ -517,7 +527,7 @@ export default function AdminPage() {
         </div>
       </header>
 
-      <div className="mx-auto grid w-full max-w-[1720px] grid-cols-1 gap-4 p-3 sm:p-6 lg:h-[calc(100vh-80px)] lg:grid-cols-[1.15fr_0.95fr] lg:overflow-hidden">
+      <div className={`mx-auto grid w-full max-w-[1720px] grid-cols-1 gap-4 p-3 sm:p-6 lg:h-[calc(100vh-80px)] lg:grid-cols-[1.15fr_0.95fr] lg:overflow-hidden ${adminView === "promo" ? "hidden" : ""}`}>
         <section className={`relative rounded-[24px] border border-pink-100 bg-white p-3 shadow-[0_8px_24px_rgba(247,108,156,0.08)] sm:p-5 ${adminView === "override" ? "" : "hidden"}`}>
           <div className="mb-4 flex items-center justify-between gap-2">
             {canGoPrev ? (
@@ -782,6 +792,8 @@ export default function AdminPage() {
           </div>
         </section>
       </div>
+
+      {adminView === "promo" ? <PromoEditor /> : null}
     </main>
   );
 }

@@ -16,18 +16,50 @@ type BookingFormInput = {
   time?: string;
 };
 
-export function openBookingForm({ date, camera, time }: BookingFormInput) {
+type PromoConsumeResponse = {
+  promoApplied?: boolean;
+  promoCode?: string | null;
+};
+
+async function consumePromo(date: string): Promise<string | null> {
+  try {
+    const response = await fetch("/api/promo/consume", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dateKey: date }),
+    });
+    const json = (await response.json()) as PromoConsumeResponse;
+    if (!response.ok) return null;
+    return json?.promoCode || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function openBookingForm({ date, camera, time }: BookingFormInput) {
   const FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSfQEfEwQycrM2auRb86SWMcYLq64B7Li7I2PaCSSJqBwosTgg/viewform?usp=pp_url";
   const DATE_TIME_ENTRY = "entry.1585171895";
   const CAMERA_ENTRY = "entry.235456864";
+  const PROMO_CODE_PARAM = process.env.NEXT_PUBLIC_GOOGLE_FORM_PROMO_ENTRY_ID || "promo_code";
 
+  const popup = window.open("about:blank", "_blank", "noopener,noreferrer");
   const dateTimeValue = `${date} ${time || "00:00"}`;
+  const promoCode = await consumePromo(date);
   const params = new URLSearchParams({
     [CAMERA_ENTRY]: cameraLabel(camera),
     [DATE_TIME_ENTRY]: dateTimeValue,
   });
 
+  if (promoCode) {
+    params.set(PROMO_CODE_PARAM, promoCode);
+  }
+
   const url = `${FORM_URL}&${params.toString()}`;
+  if (popup) {
+    popup.location.href = url;
+    return;
+  }
+
   window.open(url, "_blank", "noopener,noreferrer");
 }
 

@@ -178,12 +178,13 @@ export default function SelectedDateCard({
         disabled={!canBook}
         onClick={
           canBook
-            ? () =>
-                openBookingForm({
+            ? () => {
+                void openBookingForm({
                   date: selectedDateRaw,
                   camera: selectedCamera as CameraKey,
                   time: selectedTime || "00:00",
-                })
+                });
+              }
             : undefined
         }
         className={`mt-4 hidden h-[52px] w-full rounded-full border text-sm font-semibold transition sm:inline-flex sm:items-center sm:justify-center ${
