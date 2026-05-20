@@ -72,7 +72,9 @@ export default function BookingCalendar({
 
   const now = new Date();
   const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const maxMonthStart = new Date(now.getFullYear(), now.getMonth() + 2, 1);
   const canGoPrev = activeMonth.getTime() > currentMonthStart.getTime();
+  const canGoNext = activeMonth.getTime() < maxMonthStart.getTime();
 
   const cells = buildCalendarDays(year, month);
 
@@ -91,13 +93,17 @@ export default function BookingCalendar({
           <div className="h-9 w-9" />
         )}
         <h2 className="text-sm font-semibold text-[#333333] sm:text-base">Kalender Booking {monthLabel}</h2>
-        <button
-          type="button"
-          onClick={() => setActiveMonth(new Date(year, month + 1, 1))}
-          className="h-9 w-9 rounded-xl border border-pink-200 bg-white text-pink-700"
-        >
-          ›
-        </button>
+        {canGoNext ? (
+          <button
+            type="button"
+            onClick={() => setActiveMonth(new Date(year, month + 1, 1))}
+            className="h-9 w-9 rounded-xl border border-pink-200 bg-white text-pink-700"
+          >
+            ›
+          </button>
+        ) : (
+          <div className="h-9 w-9" />
+        )}
       </div>
 
       <p className="mb-3 text-center text-[11px] text-zinc-500">

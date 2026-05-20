@@ -55,6 +55,12 @@ export default function Home() {
   const isFetchingRef = useRef(false);
   const selectedCardRef = useRef<HTMLDivElement | null>(null);
 
+  const scrollPageTo = useCallback((target: "top" | "bottom") => {
+    if (typeof window === "undefined") return;
+    const top = target === "top" ? 0 : document.documentElement.scrollHeight;
+    window.scrollTo({ top, behavior: "smooth" });
+  }, []);
+
   const [cameraBookings, setCameraBookings] = useState<CameraBookings>(() => {
     if (typeof window === "undefined") return {};
     try {
@@ -169,6 +175,31 @@ export default function Home() {
     };
   }, [selectedDate, selectedCamera]);
 
+  useEffect(() => {
+    const shouldLockScroll = !selectedDate || showCaraBook || showPricelist || showRules;
+    const body = document.body;
+    const html = document.documentElement;
+
+    if (shouldLockScroll) {
+      body.style.overflow = "hidden";
+      body.style.touchAction = "none";
+      body.style.overscrollBehavior = "none";
+      html.style.overflow = "hidden";
+    } else {
+      body.style.overflow = "";
+      body.style.touchAction = "";
+      body.style.overscrollBehavior = "";
+      html.style.overflow = "";
+    }
+
+    return () => {
+      body.style.overflow = "";
+      body.style.touchAction = "";
+      body.style.overscrollBehavior = "";
+      html.style.overflow = "";
+    };
+  }, [selectedDate, showCaraBook, showPricelist, showRules]);
+
   const selectedDayStatus = selectedDate ? cameraBookings[selectedDate] : undefined;
 
   const cameraStates = useMemo(() => {
@@ -184,8 +215,7 @@ export default function Home() {
 
   function handleSelectDate(dateKey: string) {
     if (selectedDate === dateKey) {
-      setSelectedDate(null);
-      setSelectedCamera(null);
+      handleCloseSelectedDate();
       return;
     }
     setSelectedDate(dateKey);
@@ -193,7 +223,15 @@ export default function Home() {
     setSelectedTime("00:00");
     requestAnimationFrame(() => {
       selectedCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      scrollPageTo("bottom");
     });
+  }
+
+  function handleCloseSelectedDate() {
+    setSelectedDate(null);
+    setSelectedCamera(null);
+    setSelectedTime("00:00");
+    setTimeout(() => scrollPageTo("top"), 0);
   }
 
   function openCaraBookModal() {
@@ -236,7 +274,7 @@ export default function Home() {
 
       <Header />
 
-      <TopTabs active={activeTab} onOpenCaraBook={openCaraBookModal} onOpenPricelist={openPricelistModal} onOpenRules={openRulesModal} />
+      <TopTabs active={activeTab === "cara-book" ? "cara-book" : null} onOpenCaraBook={openCaraBookModal} />
 
       <div className="mx-auto mt-3 w-full max-w-[420px] space-y-3 px-3">
         <BookingCalendar
@@ -255,6 +293,8 @@ export default function Home() {
               selectedDateRaw={selectedDate}
               selectedTime={selectedTime}
               onChangeTime={setSelectedTime}
+              onOpenTimePicker={() => scrollPageTo("bottom")}
+              onCloseSelectedDate={handleCloseSelectedDate}
               cameraStates={cameraStates}
               selectedCamera={selectedCamera}
               onSelectCamera={setSelectedCamera}
@@ -268,14 +308,14 @@ export default function Home() {
             onClick={openPricelistModal}
             className="rounded-2xl bg-white px-3 py-3 text-sm font-medium text-pink-700 shadow-sm"
           >
-            Pricelist
+            {`Pricelist ${String.fromCodePoint(0x1f4b8)}`}
           </button>
           <button
             type="button"
             onClick={openRulesModal}
             className="rounded-2xl bg-white px-3 py-3 text-sm font-medium text-pink-700 shadow-sm"
           >
-            Peraturan Booking
+            {`Peraturan Booking ${String.fromCodePoint(0x2757)}`}
           </button>
         </div>
 

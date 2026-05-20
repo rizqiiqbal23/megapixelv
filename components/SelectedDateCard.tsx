@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import CameraCard, { type CameraAvailability } from "@/components/CameraCard";
 import { cameraLabel, openBookingForm, type CameraKey } from "@/components/booking-form";
@@ -15,6 +15,8 @@ type SelectedDateCardProps = {
   selectedDateRaw: string;
   selectedTime: string;
   onChangeTime: (time: string) => void;
+  onOpenTimePicker: () => void;
+  onCloseSelectedDate: () => void;
   cameraStates: Array<{ key: CameraKey; status: CameraAvailability }>;
   selectedCamera: CameraKey | null;
   onSelectCamera: (camera: CameraKey) => void;
@@ -25,6 +27,8 @@ export default function SelectedDateCard({
   selectedDateRaw,
   selectedTime,
   onChangeTime,
+  onOpenTimePicker,
+  onCloseSelectedDate,
   cameraStates,
   selectedCamera,
   onSelectCamera,
@@ -46,9 +50,24 @@ export default function SelectedDateCard({
     onChangeTime(`${hour}:${minute}`);
   };
 
+  useEffect(() => {
+    if (!isTimePickerOpen) return;
+    const id = window.setTimeout(() => onOpenTimePicker(), 0);
+    return () => window.clearTimeout(id);
+  }, [isTimePickerOpen, onOpenTimePicker]);
+
   return (
-    <section className="rounded-3xl border border-pink-100 bg-white p-4 shadow-[0_10px_25px_rgba(246,79,139,0.08)]">
-      <div className="mb-3 flex items-center gap-2 text-pink-600">
+    <section className="relative rounded-3xl border border-pink-100 bg-white p-4 shadow-[0_10px_25px_rgba(246,79,139,0.08)]">
+      <button
+        type="button"
+        onClick={onCloseSelectedDate}
+        className="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full border border-pink-200 bg-white text-[11px] font-bold text-pink-500 shadow-sm transition hover:bg-pink-50"
+        aria-label="Tutup status kamera"
+      >
+        ×
+      </button>
+
+      <div className="mb-3 flex items-center gap-2 pr-8 text-pink-600">
         <span>{CALENDAR_ICON}</span>
         <h3 className="text-sm font-semibold text-[#333333] sm:text-base">{selectedDateLabel}</h3>
       </div>
@@ -63,7 +82,13 @@ export default function SelectedDateCard({
         </div>
         <button
           type="button"
-          onClick={() => setIsTimePickerOpen((value) => !value)}
+          onClick={() => {
+            setIsTimePickerOpen((value) => {
+              const nextValue = !value;
+              if (nextValue) onOpenTimePicker();
+              return nextValue;
+            });
+          }}
           className="flex h-12 w-full items-center justify-between rounded-2xl border border-pink-200 bg-white px-4 text-sm font-medium text-pink-700 shadow-sm transition hover:border-pink-300 hover:bg-pink-50 focus:outline-none focus:ring-2 focus:ring-pink-200"
         >
           <span>{selectedTime || "00:00"}</span>

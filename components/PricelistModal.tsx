@@ -20,7 +20,7 @@ export default function PricelistModal({ open, onClose }: PricelistModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/35" onClick={onClose}>
-      <div className="absolute bottom-0 left-0 right-0 h-[100dvh] rounded-t-3xl bg-white p-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+      <div className="absolute bottom-0 left-0 right-0 flex h-[100dvh] flex-col overflow-hidden rounded-t-3xl bg-white p-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="mx-auto mb-3 h-1.5 w-14 rounded-full bg-pink-100" />
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-pink-700">Pricelist</h3>
@@ -32,7 +32,7 @@ export default function PricelistModal({ open, onClose }: PricelistModalProps) {
             Kembali
           </button>
         </div>
-        <div className="h-[calc(100dvh-118px)] overflow-auto">
+        <div className="flex-1 overflow-hidden">
           <div className="overflow-hidden rounded-2xl border border-[#F9D4E4]">
             <table className="w-full text-sm">
               <thead className="bg-gradient-to-r from-pink-100 to-[#FFF0F7] text-pink-700">

@@ -11,7 +11,7 @@ export default function RulesModal({ open, onClose, rules }: RulesModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/35" onClick={onClose}>
-      <div className="absolute bottom-0 left-0 right-0 h-[100dvh] rounded-t-3xl bg-white p-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+      <div className="absolute bottom-0 left-0 right-0 flex h-[100dvh] flex-col overflow-hidden rounded-t-3xl bg-white p-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="mx-auto mb-3 h-1.5 w-14 rounded-full bg-pink-100" />
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-pink-700">Peraturan Booking</h3>
@@ -23,7 +23,7 @@ export default function RulesModal({ open, onClose, rules }: RulesModalProps) {
             Kembali
           </button>
         </div>
-        <div className="h-[calc(100dvh-118px)] overflow-auto pr-1">
+        <div className="flex-1 overflow-hidden pr-1">
           <ul className="space-y-2 text-sm text-[#333333]">
             {rules.map((rule) => (
               <li key={rule} className="flex items-start gap-2">
