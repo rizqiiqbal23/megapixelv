@@ -63,7 +63,7 @@ export default function RulesModal({ open, onClose, rules }: RulesModalProps) {
               Kembali
             </button>
           </div>
-          <div className="flex-1 overflow-hidden pr-1">
+          <div className="flex-1 overflow-y-auto pr-1">
             <ul className="space-y-2 text-sm text-[#333333]">
               {rules.map((rule) => (
                 <li key={rule} className="flex items-start gap-2">

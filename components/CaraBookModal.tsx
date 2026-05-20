@@ -30,7 +30,7 @@ export default function CaraBookModal({ open, onClose }: CaraBookModalProps) {
           </button>
         </div>
 
-        <div className="flex-1 overflow-hidden pr-1">
+        <div className="flex-1 overflow-y-auto pr-1">
           <div className="mb-3 rounded-2xl border border-pink-200 bg-pink-50 px-3 py-2 text-sm text-pink-700">
             💖 klik tanggal yang kamu mau, pilih kamera, lalu BOOK! 📸💕
           </div>

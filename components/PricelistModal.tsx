@@ -111,7 +111,7 @@ export default function PricelistModal({ open, onClose }: PricelistModalProps) {
               Kembali
             </button>
           </div>
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 overflow-y-auto pr-1">
             <div className="overflow-hidden rounded-2xl border border-[#F9D4E4]">
               <table className="w-full text-sm">
                 <thead className="bg-gradient-to-r from-pink-100 to-[#FFF0F7] text-pink-700">

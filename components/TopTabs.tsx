@@ -1,6 +1,7 @@
 type TopTabsProps = {
-  active: "cara-book" | null;
+  active: "cara-book" | "photo-gallery" | null;
   onOpenCaraBook: () => void;
+  onOpenPhotoGallery: () => void;
 };
 
 function TabButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
@@ -17,11 +18,12 @@ function TabButton({ label, active, onClick }: { label: string; active: boolean;
   );
 }
 
-export default function TopTabs({ active, onOpenCaraBook }: TopTabsProps) {
+export default function TopTabs({ active, onOpenCaraBook, onOpenPhotoGallery }: TopTabsProps) {
   return (
     <div className="mx-auto mt-3 w-full max-w-[420px] px-3">
       <div className="flex h-[44px] items-center justify-center rounded-full border border-pink-100 bg-white shadow-sm">
         <TabButton label="Cara Book" active={active === "cara-book"} onClick={onOpenCaraBook} />
+        <TabButton label="Photo Gallery" active={active === "photo-gallery"} onClick={onOpenPhotoGallery} />
       </div>
     </div>
   );

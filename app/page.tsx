@@ -1,10 +1,11 @@
-"use client";
+﻿"use client";
 
 import { Poppins } from "next/font/google";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import BookingCalendar, { type CameraBookings } from "@/components/BookingCalendar";
 import CaraBookModal from "@/components/CaraBookModal";
 import Header from "@/components/Header";
+import PhotoGalleryModal from "@/components/PhotoGalleryModal";
 import PricelistModal from "@/components/PricelistModal";
 import RulesModal from "@/components/RulesModal";
 import SelectedDateCard from "@/components/SelectedDateCard";
@@ -111,7 +112,8 @@ export default function Home() {
   const [showPricelist, setShowPricelist] = useState(false);
   const [showRules, setShowRules] = useState(false);
   const [showCaraBook, setShowCaraBook] = useState(false);
-  const [activeTab, setActiveTab] = useState<"cara-book" | "pricelist" | "rules" | null>(null);
+  const [showPhotoGallery, setShowPhotoGallery] = useState(false);
+  const [activeTab, setActiveTab] = useState<"cara-book" | "photo-gallery" | "pricelist" | "rules" | null>(null);
 
   const loadBookings = useCallback(async (signal?: AbortSignal) => {
     if (isFetchingRef.current) return;
@@ -339,6 +341,11 @@ export default function Home() {
     setShowCaraBook(true);
   }
 
+  function openPhotoGalleryModal() {
+    setActiveTab("photo-gallery");
+    setShowPhotoGallery(true);
+  }
+
   function openPricelistModal() {
     setActiveTab("pricelist");
     setShowPricelist(true);
@@ -383,7 +390,11 @@ export default function Home() {
           className="mx-auto w-full max-w-[420px] origin-top px-3 pt-0 transition-transform duration-150 sm:pt-0"
           style={homeScale < 1 ? { transform: `scale(${homeScale})` } : undefined}
         >
-          <TopTabs active={activeTab === "cara-book" ? "cara-book" : null} onOpenCaraBook={openCaraBookModal} />
+          <TopTabs
+            active={activeTab === "cara-book" ? "cara-book" : activeTab === "photo-gallery" ? "photo-gallery" : null}
+            onOpenCaraBook={openCaraBookModal}
+            onOpenPhotoGallery={openPhotoGalleryModal}
+          />
 
           <div className="mt-3 space-y-3">
           <BookingCalendar
@@ -423,7 +434,7 @@ export default function Home() {
                 onClick={openRulesModal}
                 className="rounded-2xl bg-white px-3 py-3 text-sm font-medium text-pink-700 shadow-sm"
               >
-                {`Peraturan Booking ${String.fromCodePoint(0x2757)}`}
+                {`Peraturan Booking${String.fromCodePoint(0x2757)}`}
               </button>
             </div>
 
@@ -452,6 +463,13 @@ export default function Home() {
         open={showPricelist}
         onClose={() => {
           setShowPricelist(false);
+          setActiveTab(null);
+        }}
+      />
+      <PhotoGalleryModal
+        open={showPhotoGallery}
+        onClose={() => {
+          setShowPhotoGallery(false);
           setActiveTab(null);
         }}
       />
