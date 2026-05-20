@@ -53,8 +53,10 @@ function toReadableDate(dateKey: string): string {
 
 export default function Home() {
   const isFetchingRef = useRef(false);
+  const homeShellRef = useRef<HTMLDivElement | null>(null);
   const selectedCardRef = useRef<HTMLDivElement | null>(null);
   const lastUpdatedAtRef = useRef<string | null>(null);
+  const [homeScale, setHomeScale] = useState(1);
 
   const scrollPageTo = useCallback((target: "top" | "bottom") => {
     if (typeof window === "undefined") return;
@@ -131,6 +133,44 @@ export default function Home() {
   }, [lastUpdatedAt]);
 
   useEffect(() => {
+    const updateHomeScale = () => {
+      if (typeof window === "undefined") return;
+      if (window.innerWidth >= 640) {
+        setHomeScale(1);
+        return;
+      }
+
+      const shell = homeShellRef.current;
+      if (!shell) return;
+
+      const availableHeight = Math.max(0, window.innerHeight - 8);
+      const contentHeight = shell.scrollHeight;
+      if (!contentHeight) {
+        setHomeScale(1);
+        return;
+      }
+
+      const nextScale = Math.min(1, availableHeight / contentHeight);
+      setHomeScale(Number.isFinite(nextScale) && nextScale > 0 ? nextScale : 1);
+    };
+
+    updateHomeScale();
+
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => updateHomeScale());
+    if (observer && homeShellRef.current) {
+      observer.observe(homeShellRef.current);
+    }
+
+    window.addEventListener("resize", updateHomeScale);
+    window.addEventListener("orientationchange", updateHomeScale);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", updateHomeScale);
+      window.removeEventListener("orientationchange", updateHomeScale);
+    };
+  }, [selectedDate, selectedCamera, showCaraBook, showPricelist, showRules, isLoading, error, lastUpdatedAt, cameraBookings]);
+
+  useEffect(() => {
     const controller = new AbortController();
     const id = setTimeout(() => void loadBookings(controller.signal), 0);
     const interval = setInterval(() => void loadBookings(), 3 * 60 * 60 * 1000);
@@ -203,7 +243,8 @@ export default function Home() {
   }, [selectedDate, selectedCamera]);
 
   useEffect(() => {
-    const shouldLockScroll = !selectedDate || showCaraBook || showPricelist || showRules;
+    const shouldForceLockMobile = typeof window !== "undefined" && window.innerWidth < 640;
+    const shouldLockScroll = shouldForceLockMobile || !selectedDate || showCaraBook || showPricelist || showRules;
     const body = document.body;
     const html = document.documentElement;
 
@@ -248,17 +289,21 @@ export default function Home() {
     setSelectedDate(dateKey);
     setSelectedCamera(null);
     setSelectedTime("00:00");
-    requestAnimationFrame(() => {
-      selectedCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      scrollPageTo("bottom");
-    });
+    if (typeof window !== "undefined" && window.innerWidth >= 640) {
+      requestAnimationFrame(() => {
+        selectedCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        scrollPageTo("bottom");
+      });
+    }
   }
 
   function handleCloseSelectedDate() {
     setSelectedDate(null);
     setSelectedCamera(null);
     setSelectedTime("00:00");
-    setTimeout(() => scrollPageTo("top"), 0);
+    if (typeof window !== "undefined" && window.innerWidth >= 640) {
+      setTimeout(() => scrollPageTo("top"), 0);
+    }
   }
 
   function openCaraBookModal() {
@@ -278,7 +323,7 @@ export default function Home() {
 
   return (
     <main
-      className={`${poppins.className} min-h-screen bg-cover bg-center pb-40`}
+      className={`${poppins.className} min-h-[100dvh] overflow-hidden bg-cover bg-center pb-0 lg:min-h-screen lg:overflow-visible lg:pb-40`}
       style={{
         backgroundImage:
           "linear-gradient(rgba(251, 113, 133, 0.2), rgba(251, 113, 133, 0.2)), url('/image/bg.png')",
@@ -299,55 +344,61 @@ export default function Home() {
         <span className="absolute right-4 bottom-8 text-pink-400/80 animate-[floatSoft_6.9s_ease-in-out_infinite_0.2s]">🍒</span>
       </div>
 
-      <Header />
+      <div
+        ref={homeShellRef}
+        className="mx-auto w-full max-w-[420px] origin-top px-3 pt-0 transition-transform duration-150 sm:pt-0"
+        style={homeScale < 1 ? { transform: `scale(${homeScale})` } : undefined}
+      >
+        <Header />
 
-      <TopTabs active={activeTab === "cara-book" ? "cara-book" : null} onOpenCaraBook={openCaraBookModal} />
+        <TopTabs active={activeTab === "cara-book" ? "cara-book" : null} onOpenCaraBook={openCaraBookModal} />
 
-      <div className="mx-auto mt-3 w-full max-w-[420px] space-y-3 px-3">
-        <BookingCalendar
-          activeMonth={activeMonth}
-          setActiveMonth={setActiveMonth}
-          cameraBookings={cameraBookings}
-          selectedDate={selectedDate}
-          onSelectDate={handleSelectDate}
-          lastUpdatedAt={lastUpdatedAt}
-        />
+        <div className="mt-3 space-y-3">
+          <BookingCalendar
+            activeMonth={activeMonth}
+            setActiveMonth={setActiveMonth}
+            cameraBookings={cameraBookings}
+            selectedDate={selectedDate}
+            onSelectDate={handleSelectDate}
+            lastUpdatedAt={lastUpdatedAt}
+          />
 
-        {selectedDate && (
-          <div ref={selectedCardRef}>
-            <SelectedDateCard
-              selectedDateLabel={toReadableDate(selectedDate)}
-              selectedDateRaw={selectedDate}
-              selectedTime={selectedTime}
-              onChangeTime={setSelectedTime}
-              onOpenTimePicker={() => scrollPageTo("bottom")}
-              onCloseSelectedDate={handleCloseSelectedDate}
-              cameraStates={cameraStates}
-              selectedCamera={selectedCamera}
-              onSelectCamera={setSelectedCamera}
-            />
+          {selectedDate && (
+            <div ref={selectedCardRef}>
+              <SelectedDateCard
+                selectedDateLabel={toReadableDate(selectedDate)}
+                selectedDateRaw={selectedDate}
+                selectedTime={selectedTime}
+                onChangeTime={setSelectedTime}
+                onOpenTimePicker={() => scrollPageTo("bottom")}
+                onCloseSelectedDate={handleCloseSelectedDate}
+                cameraStates={cameraStates}
+                selectedCamera={selectedCamera}
+                onSelectCamera={setSelectedCamera}
+              />
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={openPricelistModal}
+              className="rounded-2xl bg-white px-3 py-3 text-sm font-medium text-pink-700 shadow-sm"
+            >
+              {`Pricelist ${String.fromCodePoint(0x1f4b8)}`}
+            </button>
+            <button
+              type="button"
+              onClick={openRulesModal}
+              className="rounded-2xl bg-white px-3 py-3 text-sm font-medium text-pink-700 shadow-sm"
+            >
+              {`Peraturan Booking ${String.fromCodePoint(0x2757)}`}
+            </button>
           </div>
-        )}
 
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            type="button"
-            onClick={openPricelistModal}
-            className="rounded-2xl bg-white px-3 py-3 text-sm font-medium text-pink-700 shadow-sm"
-          >
-            {`Pricelist ${String.fromCodePoint(0x1f4b8)}`}
-          </button>
-          <button
-            type="button"
-            onClick={openRulesModal}
-            className="rounded-2xl bg-white px-3 py-3 text-sm font-medium text-pink-700 shadow-sm"
-          >
-            {`Peraturan Booking ${String.fromCodePoint(0x2757)}`}
-          </button>
+          {error && <p className="rounded-2xl border border-pink-200 bg-pink-50 px-3 py-2 text-sm text-pink-700">{error}</p>}
+          {isLoading && <p className="text-center text-xs text-zinc-500">Memuat data booking...</p>}
         </div>
-
-        {error && <p className="rounded-2xl border border-pink-200 bg-pink-50 px-3 py-2 text-sm text-pink-700">{error}</p>}
-        {isLoading && <p className="text-center text-xs text-zinc-500">Memuat data booking...</p>}
       </div>
 
       <StickyBookButton
