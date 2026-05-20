@@ -56,6 +56,7 @@ export default function Home() {
   const homeShellRef = useRef<HTMLDivElement | null>(null);
   const selectedCardRef = useRef<HTMLDivElement | null>(null);
   const lastUpdatedAtRef = useRef<string | null>(null);
+  const homeBaselineHeightRef = useRef<number | null>(null);
   const [homeScale, setHomeScale] = useState(1);
 
   const scrollPageTo = useCallback((target: "top" | "bottom") => {
@@ -144,7 +145,11 @@ export default function Home() {
       if (!shell) return;
 
       const availableHeight = Math.max(0, window.innerHeight - 8);
-      const contentHeight = shell.scrollHeight;
+      if (homeBaselineHeightRef.current === null) {
+        homeBaselineHeightRef.current = shell.scrollHeight;
+      }
+
+      const contentHeight = homeBaselineHeightRef.current || shell.scrollHeight;
       if (!contentHeight) {
         setHomeScale(1);
         return;
@@ -156,19 +161,13 @@ export default function Home() {
 
     updateHomeScale();
 
-    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => updateHomeScale());
-    if (observer && homeShellRef.current) {
-      observer.observe(homeShellRef.current);
-    }
-
     window.addEventListener("resize", updateHomeScale);
     window.addEventListener("orientationchange", updateHomeScale);
     return () => {
-      observer?.disconnect();
       window.removeEventListener("resize", updateHomeScale);
       window.removeEventListener("orientationchange", updateHomeScale);
     };
-  }, [selectedDate, selectedCamera, showCaraBook, showPricelist, showRules, isLoading, error, lastUpdatedAt, cameraBookings]);
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
