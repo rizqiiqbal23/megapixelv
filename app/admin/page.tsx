@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CAMERAS, type CameraName, type CameraStatus } from "@/lib/cameras";
 import { type ManualOverrides } from "@/lib/cameras";
+import { cloneDefaultPricelistRows, type PricelistRow } from "@/lib/pricelist-data";
 
 type CameraBookings = Record<string, CameraStatus>;
 
@@ -19,6 +20,13 @@ type SessionResponse = {
 
 type OverridesResponse = {
   overrides?: ManualOverrides;
+  error?: string;
+};
+
+type PricelistResponse = {
+  rows?: PricelistRow[];
+  lastUpdatedAt?: string | null;
+  source?: string;
   error?: string;
 };
 
@@ -107,6 +115,8 @@ async function safeJson<T>(response: Response): Promise<T | null> {
 export default function AdminPage() {
   const [checkingSession, setCheckingSession] = useState(true);
   const [authenticated, setAuthenticated] = useState(false);
+  const [adminView, setAdminView] = useState<"override" | "pricelist">("override");
+  const [navOpen, setNavOpen] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState<string | null>(null);
@@ -124,10 +134,13 @@ export default function AdminPage() {
     }
   });
   const [manualOverrides, setManualOverrides] = useState<ManualOverrides>({});
+  const [pricelistRows, setPricelistRows] = useState<PricelistRow[]>(cloneDefaultPricelistRows());
   const [loadingData, setLoadingData] = useState(false);
   const [refreshingSheet, setRefreshingSheet] = useState(false);
+  const [savingPricelist, setSavingPricelist] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [pricelistMessage, setPricelistMessage] = useState<string | null>(null);
   const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
   const [draftStatus, setDraftStatus] = useState<CameraStatus>(emptyStatus());
   const [activeMonth, setActiveMonth] = useState(() => {
@@ -186,6 +199,14 @@ export default function AdminPage() {
 
       const nextOverrides = overridesJson?.overrides || {};
       setManualOverrides(nextOverrides);
+
+      const pricelistResponse = await fetch("/api/admin/pricelist", { cache: "no-store" });
+      const pricelistJson = await safeJson<PricelistResponse>(pricelistResponse);
+      if (!pricelistResponse.ok) {
+        throw new Error(pricelistJson?.error || "Gagal memuat pricelist.");
+      }
+
+      setPricelistRows(pricelistJson?.rows?.length ? pricelistJson.rows : cloneDefaultPricelistRows());
       setMessage(null);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Gagal memuat data admin.");
@@ -276,6 +297,11 @@ export default function AdminPage() {
     setMessage(null);
   }
 
+  function switchAdminView(view: "override" | "pricelist") {
+    setAdminView(view);
+    setNavOpen(false);
+  }
+
   async function saveOverride() {
     if (!selectedDateKey) return;
     setSaving(true);
@@ -328,6 +354,46 @@ export default function AdminPage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  async function savePricelist() {
+    setSavingPricelist(true);
+    setPricelistMessage(null);
+
+    try {
+      const response = await fetch("/api/admin/pricelist", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rows: pricelistRows }),
+      });
+      const json = await safeJson<{ error?: string; rows?: PricelistRow[] }>(response);
+      if (!response.ok) throw new Error(json?.error || "Gagal menyimpan pricelist.");
+
+      setPricelistRows(json?.rows?.length ? json.rows : pricelistRows);
+      setPricelistMessage("Pricelist berhasil disimpan.");
+    } catch (error) {
+      setPricelistMessage(error instanceof Error ? error.message : "Gagal menyimpan pricelist.");
+    } finally {
+      setSavingPricelist(false);
+    }
+  }
+
+  function updatePricelistRow(index: number, field: "duration" | "price", value: string) {
+    setPricelistRows((current) =>
+      current.map((row, rowIndex) =>
+        rowIndex === index
+          ? {
+              ...row,
+              [field]: value,
+            }
+          : row
+      )
+    );
+  }
+
+  function resetPricelist() {
+    setPricelistRows(cloneDefaultPricelistRows());
+    setPricelistMessage("Pricelist dikembalikan ke default.");
   }
 
   if (checkingSession) {
@@ -395,22 +461,56 @@ export default function AdminPage() {
 
       <header className="sticky top-0 z-20 border-b border-pink-100 bg-white/90 backdrop-blur">
         <div className="mx-auto flex min-h-20 w-full max-w-[1720px] items-center justify-between gap-3 px-4 py-2 sm:px-8">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-pink-500">Admin</p>
-            <h1 className="text-xl font-semibold tracking-[0.08em] text-zinc-800 sm:text-3xl">MEGAPIXELV</h1>
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setNavOpen((value) => !value)}
+                className="flex h-10 w-10 items-center justify-center rounded-xl border border-pink-200 bg-white text-pink-700 shadow-sm"
+                aria-label="Buka navigasi admin"
+              >
+                <span className="flex flex-col gap-[3px]">
+                  <span className="h-0.5 w-4 rounded-full bg-pink-600" />
+                  <span className="h-0.5 w-4 rounded-full bg-pink-600" />
+                  <span className="h-0.5 w-4 rounded-full bg-pink-600" />
+                </span>
+              </button>
+
+              {navOpen ? (
+                <div className="absolute left-0 top-[calc(100%+8px)] z-30 w-40 overflow-hidden rounded-2xl border border-pink-100 bg-white shadow-xl">
+                  <button
+                    type="button"
+                    onClick={() => switchAdminView("override")}
+                    className={`block w-full px-4 py-3 text-left text-sm transition ${
+                      adminView === "override" ? "bg-pink-50 text-pink-700" : "text-zinc-700 hover:bg-pink-50"
+                    }`}
+                  >
+                    Override
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => switchAdminView("pricelist")}
+                    className={`block w-full px-4 py-3 text-left text-sm transition ${
+                      adminView === "pricelist" ? "bg-pink-50 text-pink-700" : "text-zinc-700 hover:bg-pink-50"
+                    }`}
+                  >
+                    Pricelist
+                  </button>
+                </div>
+              ) : null}
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-pink-500">Admin</p>
+              <h1 className="text-xl font-semibold tracking-[0.08em] text-zinc-800 sm:text-3xl">MEGAPIXELV</h1>
+            </div>
           </div>
+
           <div className="flex items-center gap-2">
-            <Link
-              href="/"
-              className="rounded-xl border border-pink-200 bg-white px-3 py-2 text-xs font-medium text-pink-700"
-            >
+            <Link href="/" className="rounded-xl border border-pink-200 bg-white px-3 py-2 text-xs font-medium text-pink-700">
               Home
             </Link>
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="rounded-xl bg-pink-600 px-3 py-2 text-xs font-medium text-white"
-            >
+            <button type="button" onClick={handleLogout} className="rounded-xl bg-pink-600 px-3 py-2 text-xs font-medium text-white">
               Logout
             </button>
           </div>
@@ -418,7 +518,7 @@ export default function AdminPage() {
       </header>
 
       <div className="mx-auto grid w-full max-w-[1720px] grid-cols-1 gap-4 p-3 sm:p-6 lg:h-[calc(100vh-80px)] lg:grid-cols-[1.15fr_0.95fr] lg:overflow-hidden">
-        <section className="relative rounded-[24px] border border-pink-100 bg-white p-3 shadow-[0_8px_24px_rgba(247,108,156,0.08)] sm:p-5">
+        <section className={`relative rounded-[24px] border border-pink-100 bg-white p-3 shadow-[0_8px_24px_rgba(247,108,156,0.08)] sm:p-5 ${adminView === "override" ? "" : "hidden"}`}>
           <div className="mb-4 flex items-center justify-between gap-2">
             {canGoPrev ? (
               <button
@@ -516,7 +616,7 @@ export default function AdminPage() {
           )}
         </section>
 
-        <section className="flex min-h-0 flex-col rounded-[24px] border border-pink-100 bg-white p-3 shadow-[0_8px_24px_rgba(247,108,156,0.08)] sm:p-5">
+        <section className={`flex min-h-0 flex-col rounded-[24px] border border-pink-100 bg-white p-3 shadow-[0_8px_24px_rgba(247,108,156,0.08)] sm:p-5 ${adminView === "override" ? "" : "hidden"}`}>
           <div className="mb-3 flex items-center justify-between text-pink-600">
             <div className="flex items-center gap-2">
               <span className="text-xl">🛠️</span>
@@ -623,6 +723,62 @@ export default function AdminPage() {
           <div className="mt-3 rounded-2xl border border-pink-100 bg-pink-50/30 p-3 text-xs text-zinc-600">
             <p className="font-semibold text-zinc-700">Override aktif</p>
             <p className="mt-1">{overrideDates.length ? overrideDates.join(", ") : "-"}</p>
+          </div>
+        </section>
+
+        <section className={`flex min-h-0 flex-col rounded-[24px] border border-pink-100 bg-white p-2 shadow-[0_8px_24px_rgba(247,108,156,0.08)] sm:p-5 ${adminView === "pricelist" ? "lg:col-span-2 lg:mx-auto lg:w-full lg:max-w-3xl" : "hidden"}`}>
+          <div className="mb-2 flex items-center justify-between text-pink-600 sm:mb-3">
+            <div className="flex items-center gap-2">
+              <span className="text-lg sm:text-xl">💸</span>
+              <h2 className="text-base font-semibold sm:text-2xl">Pricelist Editor</h2>
+            </div>
+            <span className="text-sm text-pink-300 sm:text-base">❗</span>
+          </div>
+
+          <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-pink-100 bg-pink-50/30 p-2 sm:p-4">
+            <div className="overflow-hidden rounded-2xl border border-[#F9D4E4] bg-white">
+              <div className="grid grid-cols-[1.25fr_1fr] bg-gradient-to-r from-pink-100 to-[#FFF0F7] px-2 py-2 text-[11px] font-semibold text-pink-700 sm:px-3 sm:py-3 sm:text-sm">
+                <div>Durasi</div>
+                <div className="text-right">Harga Sewa</div>
+              </div>
+
+              <div className="divide-y divide-pink-100">
+                {pricelistRows.map((row, index) => (
+                  <div key={row.id} className="grid grid-cols-[1.25fr_1fr] gap-1 px-2 py-1.5 sm:gap-2 sm:px-3 sm:py-2">
+                    <input
+                      value={row.duration}
+                      onChange={(event) => updatePricelistRow(index, "duration", event.target.value)}
+                      className="rounded-xl border border-pink-200 bg-white px-2 py-1.5 text-[11px] text-[#333333] outline-none transition focus:border-pink-400 sm:px-3 sm:py-2 sm:text-sm"
+                    />
+                    <input
+                      value={row.price}
+                      onChange={(event) => updatePricelistRow(index, "price", event.target.value)}
+                      className="rounded-xl border border-pink-200 bg-white px-2 py-1.5 text-right text-[11px] font-semibold text-[#F64F8B] outline-none transition focus:border-pink-400 sm:px-3 sm:py-2 sm:text-sm"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-2 flex flex-wrap gap-2 sm:mt-4">
+              <button
+                type="button"
+                onClick={resetPricelist}
+                className="rounded-xl border border-pink-200 bg-white px-2 py-1.5 text-[11px] font-medium text-pink-700 sm:px-3 sm:py-2 sm:text-xs"
+              >
+                Reset default
+              </button>
+              <button
+                type="button"
+                onClick={savePricelist}
+                disabled={savingPricelist}
+                className="rounded-xl bg-gradient-to-r from-[#FF8FB1] to-[#F76C9C] px-2 py-1.5 text-[11px] font-medium text-white disabled:opacity-60 sm:px-3 sm:py-2 sm:text-xs"
+              >
+                {savingPricelist ? "Menyimpan..." : "Simpan pricelist"}
+              </button>
+            </div>
+
+            {pricelistMessage ? <p className="mt-2 rounded-xl bg-pink-50 px-2 py-1.5 text-[11px] text-pink-700 sm:mt-3 sm:px-3 sm:py-2 sm:text-sm">{pricelistMessage}</p> : null}
           </div>
         </section>
       </div>

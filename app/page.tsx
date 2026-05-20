@@ -159,7 +159,7 @@ export default function Home() {
       }
     };
 
-    const interval = window.setInterval(() => void checkForRemoteUpdate(), 10 * 1000);
+    const interval = window.setInterval(() => void checkForRemoteUpdate(), 5 * 1000);
     return () => window.clearInterval(interval);
   }, [loadBookings]);
 
