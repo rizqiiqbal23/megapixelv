@@ -36,30 +36,27 @@ async function consumePromo(date: string): Promise<string | null> {
   }
 }
 
-export async function openBookingForm({ date, camera, time }: BookingFormInput) {
+function buildBookingFormUrl({ date, camera, time, promoCode }: BookingFormInput & { promoCode?: string | null }) {
   const FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSfQEfEwQycrM2auRb86SWMcYLq64B7Li7I2PaCSSJqBwosTgg/viewform?usp=pp_url";
   const DATE_TIME_ENTRY = "entry.1585171895";
   const CAMERA_ENTRY = "entry.235456864";
   const PROMO_CODE_PARAM = process.env.NEXT_PUBLIC_GOOGLE_FORM_PROMO_ENTRY_ID || "promo_code";
 
-  const popup = window.open("about:blank", "_blank", "noopener,noreferrer");
-  const dateTimeValue = `${date} ${time || "00:00"}`;
-  const promoCode = await consumePromo(date);
   const params = new URLSearchParams({
     [CAMERA_ENTRY]: cameraLabel(camera),
-    [DATE_TIME_ENTRY]: dateTimeValue,
+    [DATE_TIME_ENTRY]: `${date} ${time || "00:00"}`,
   });
 
   if (promoCode) {
     params.set(PROMO_CODE_PARAM, promoCode);
   }
 
-  const url = `${FORM_URL}&${params.toString()}`;
-  if (popup) {
-    popup.location.href = url;
-    return;
-  }
+  return `${FORM_URL}&${params.toString()}`;
+}
 
-  window.open(url, "_blank", "noopener,noreferrer");
+export async function openBookingForm({ date, camera, time }: BookingFormInput) {
+  const promoCode = await consumePromo(date);
+  const url = buildBookingFormUrl({ date, camera, time, promoCode });
+  window.location.assign(url);
 }
 
