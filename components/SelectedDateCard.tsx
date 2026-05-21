@@ -14,6 +14,7 @@ type SelectedDateCardProps = {
   selectedDateLabel: string;
   selectedDateRaw: string;
   selectedTime: string;
+  isPromoDate: boolean;
   onChangeTime: (time: string) => void;
   onOpenTimePicker: () => void;
   onCloseSelectedDate: () => void;
@@ -26,6 +27,7 @@ export default function SelectedDateCard({
   selectedDateLabel,
   selectedDateRaw,
   selectedTime,
+  isPromoDate,
   onChangeTime,
   onOpenTimePicker,
   onCloseSelectedDate,
@@ -72,6 +74,18 @@ export default function SelectedDateCard({
         <h3 className="text-sm font-semibold text-[#333333] sm:text-base">{selectedDateLabel}</h3>
       </div>
       <p className="mb-4 text-xs text-zinc-600">Tersedia {availableCount} dari 3 kamera</p>
+
+      {isPromoDate ? (
+        <div className="mb-4 rounded-2xl border border-pink-200 bg-pink-50 p-3">
+          <div className="flex items-center gap-2 text-sm font-semibold text-pink-600">
+            <span className="animate-pulse text-[12px] leading-none">✨</span>
+            <span>Promo aktif di tanggal ini!</span>
+          </div>
+          <div className="mt-1 text-xs leading-relaxed text-pink-500">
+            Diskon spesial untuk booking hari ini ✨
+          </div>
+        </div>
+      ) : null}
 
       <div className="mb-4 rounded-3xl border border-pink-200 bg-pink-50/80 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
         <div className="mb-2 flex items-center gap-2">

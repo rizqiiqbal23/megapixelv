@@ -364,6 +364,7 @@ export default function Home() {
   }, [selectedDate, showCaraBook, showPricelist, showRules]);
 
   const selectedDayStatus = selectedDate ? cameraBookings[selectedDate] : undefined;
+  const selectedDateHasPromo = Boolean(selectedDate && promoDates.includes(selectedDate));
 
   const cameraStates = useMemo(() => {
     if (!selectedDate) return [] as Array<{ key: CameraKey; status: "available" | "full" }>;
@@ -470,6 +471,7 @@ export default function Home() {
                 selectedDateLabel={toReadableDate(selectedDate)}
                 selectedDateRaw={selectedDate}
                 selectedTime={selectedTime}
+                isPromoDate={selectedDateHasPromo}
                 onChangeTime={setSelectedTime}
                 onOpenTimePicker={() => scrollPageTo("bottom")}
                 onCloseSelectedDate={handleCloseSelectedDate}
