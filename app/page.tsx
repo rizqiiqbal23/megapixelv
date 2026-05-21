@@ -99,6 +99,7 @@ export default function Home() {
 
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isGestureRefreshing, setIsGestureRefreshing] = useState(false);
   const [promoDates, setPromoDates] = useState<string[]>([]);
   const [activeMonth, setActiveMonth] = useState(() => {
     const now = new Date();
@@ -286,6 +287,61 @@ export default function Home() {
   }, [selectedDate, selectedCamera]);
 
   useEffect(() => {
+    const viewport = scrollViewportRef.current;
+    if (!viewport) return;
+
+    let startY: number | null = null;
+    let startScrollTop = 0;
+    let triggerDirection: "top" | "bottom" | null = null;
+    let refreshing = false;
+    const threshold = 90;
+
+    const onTouchStart = (event: TouchEvent) => {
+      if (event.touches.length !== 1) return;
+      startY = event.touches[0].clientY;
+      startScrollTop = viewport.scrollTop;
+      triggerDirection = null;
+    };
+
+    const onTouchMove = (event: TouchEvent) => {
+      if (startY === null || refreshing) return;
+      const currentY = event.touches[0].clientY;
+      const deltaY = currentY - startY;
+      const maxScrollTop = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
+      const isAtTop = startScrollTop <= 2;
+      const isAtBottom = startScrollTop >= maxScrollTop - 2;
+
+      if (isAtTop && deltaY > threshold) {
+        triggerDirection = "top";
+      } else if (isAtBottom && deltaY < -threshold) {
+        triggerDirection = "bottom";
+      } else {
+        triggerDirection = null;
+      }
+    };
+
+    const onTouchEnd = () => {
+      startY = null;
+      if (!triggerDirection || refreshing) return;
+      refreshing = true;
+      setIsGestureRefreshing(true);
+      window.location.reload();
+    };
+
+    viewport.addEventListener("touchstart", onTouchStart, { passive: true });
+    viewport.addEventListener("touchmove", onTouchMove, { passive: true });
+    viewport.addEventListener("touchend", onTouchEnd, { passive: true });
+    viewport.addEventListener("touchcancel", onTouchEnd, { passive: true });
+
+    return () => {
+      viewport.removeEventListener("touchstart", onTouchStart);
+      viewport.removeEventListener("touchmove", onTouchMove);
+      viewport.removeEventListener("touchend", onTouchEnd);
+      viewport.removeEventListener("touchcancel", onTouchEnd);
+    };
+  }, []);
+
+  useEffect(() => {
     const shouldForceLockMobile = typeof window !== "undefined" && window.innerWidth < 640;
     const shouldLockScroll = shouldForceLockMobile || !selectedDate || showCaraBook || showPricelist || showRules;
     const body = document.body;
@@ -439,7 +495,11 @@ export default function Home() {
             </div>
 
             {error && <p className="rounded-2xl border border-pink-200 bg-pink-50 px-3 py-2 text-sm text-pink-700">{error}</p>}
-            {isLoading && <p className="text-center text-xs text-zinc-500">Memuat data booking...</p>}
+            {(isLoading || isGestureRefreshing) && (
+              <p className="text-center text-xs text-zinc-500">
+                {isGestureRefreshing ? "Menyegarkan halaman..." : "Memuat data booking..."}
+              </p>
+            )}
           </div>
         </div>
       </div>
