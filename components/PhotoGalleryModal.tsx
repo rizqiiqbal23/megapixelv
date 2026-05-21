@@ -41,12 +41,25 @@ const CAMERA_GROUPS = [
 ] as const;
 
 const CAMERA_ICON = String.fromCodePoint(0x1f4f7);
+type GalleryPhoto = {
+  id: string;
+  alt: string;
+};
+
+type GalleryGroup = {
+  label: (typeof CAMERA_GROUPS)[number]["label"];
+  photos: GalleryPhoto[];
+};
 
 export default function PhotoGalleryModal({ open, onClose }: PhotoGalleryModalProps) {
   const shellRef = useRef<HTMLDivElement | null>(null);
   const [panelScale, setPanelScale] = useState(1);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [lightboxAlt, setLightboxAlt] = useState("");
+  const [galleryGroups, setGalleryGroups] = useState<GalleryGroup[]>(
+    CAMERA_GROUPS.map((group) => ({ label: group.label, photos: [] }))
+  );
+  const [loadingGallery, setLoadingGallery] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -69,6 +82,43 @@ export default function PhotoGalleryModal({ open, onClose }: PhotoGalleryModalPr
     return () => {
       window.removeEventListener("resize", updateScale);
       window.removeEventListener("orientationchange", updateScale);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    let isCancelled = false;
+
+    const loadGallery = async () => {
+      setLoadingGallery(true);
+      try {
+        const response = await fetch("/api/gallery", { cache: "no-store" });
+        if (!response.ok) return;
+
+        const data = (await response.json()) as { groups?: GalleryGroup[] };
+        if (!data.groups || isCancelled) return;
+
+        const nextGroups = CAMERA_GROUPS.map((baseGroup) => {
+          const matched = data.groups?.find((item) => item.label === baseGroup.label);
+          return {
+            label: baseGroup.label,
+            photos: matched?.photos ?? [],
+          };
+        });
+
+        setGalleryGroups(nextGroups);
+      } finally {
+        if (!isCancelled) {
+          setLoadingGallery(false);
+        }
+      }
+    };
+
+    void loadGallery();
+
+    return () => {
+      isCancelled = true;
     };
   }, [open]);
 
@@ -106,7 +156,11 @@ export default function PhotoGalleryModal({ open, onClose }: PhotoGalleryModalPr
             </div>
 
             <div className="grid gap-3">
-              {CAMERA_GROUPS.map((group) => (
+              {CAMERA_GROUPS.map((group) => {
+                const photoGroup = galleryGroups.find((item) => item.label === group.label);
+                const photos = photoGroup?.photos ?? [];
+
+                return (
                 <section key={group.label} className={`rounded-3xl border ${group.border} bg-gradient-to-br ${group.accent} p-3`}>
                   <div className={`mb-2 flex items-center justify-between ${group.text}`}>
                     <div className="flex items-center gap-2">
@@ -114,13 +168,13 @@ export default function PhotoGalleryModal({ open, onClose }: PhotoGalleryModalPr
                       <h4 className="text-sm font-semibold">{group.label}</h4>
                     </div>
                     <span className="rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em]">
-                      Coming soon
+                      {photos.length ? `${photos.length} photos` : loadingGallery ? "Loading..." : "Coming soon"}
                     </span>
                   </div>
 
                   <div className="grid grid-cols-3 gap-2">
-                    {group.photos.length ? (
-                      group.photos.map((photo) => (
+                    {photos.length ? (
+                      photos.map((photo) => (
                         <button
                           key={photo.id}
                           type="button"
@@ -154,7 +208,8 @@ export default function PhotoGalleryModal({ open, onClose }: PhotoGalleryModalPr
                     )}
                   </div>
                 </section>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
