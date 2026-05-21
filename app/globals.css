@@ -94,3 +94,78 @@ body::before {
     transform: translate3d(0, 0, 0) rotate(-4deg);
   }
 }
+
+@keyframes promoPulse {
+  0% {
+    border-color: rgba(244, 114, 182, 0.55);
+    box-shadow: 0 0 0 2px rgba(244, 114, 182, 0.12), 0 0 0 0 rgba(251, 191, 36, 0);
+  }
+  25% {
+    border-color: rgba(251, 113, 133, 0.7);
+    box-shadow: 0 0 0 2px rgba(251, 113, 133, 0.16), 0 0 0 6px rgba(251, 191, 36, 0.06);
+  }
+  50% {
+    border-color: rgba(236, 72, 153, 0.72);
+    box-shadow: 0 0 0 2px rgba(236, 72, 153, 0.16), 0 0 0 7px rgba(244, 114, 182, 0.06);
+  }
+  75% {
+    border-color: rgba(251, 191, 36, 0.62);
+    box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.14), 0 0 0 6px rgba(251, 113, 133, 0.05);
+  }
+  100% {
+    border-color: rgba(244, 114, 182, 0.55);
+    box-shadow: 0 0 0 2px rgba(244, 114, 182, 0.12), 0 0 0 0 rgba(251, 191, 36, 0);
+  }
+}
+
+.promo-pulse {
+  animation: promoPulse 2.8s ease-in-out infinite;
+}
+
+@keyframes promoGlowMove {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes promoGlowBreath {
+  0%,
+  100% {
+    opacity: 0.72;
+  }
+  50% {
+    opacity: 0.98;
+  }
+}
+
+.promo-glow-border,
+.promo-glow-blur {
+  background: linear-gradient(
+    120deg,
+    rgba(255, 158, 203, 0.92),
+    rgba(255, 214, 231, 0.9),
+    rgba(203, 166, 255, 0.92),
+    rgba(255, 182, 217, 0.9),
+    rgba(255, 158, 203, 0.92)
+  );
+  background-size: 300% 300%;
+  animation: promoGlowMove 4.4s linear infinite, promoGlowBreath 3.8s ease-in-out infinite;
+}
+
+.promo-glow-blur {
+  filter: blur(8px);
+  transform: scale(1.04);
+  opacity: 0.56;
+  animation-duration: 5.2s, 4.6s;
+}
+
+.promo-glow-border {
+  opacity: 0.9;
+  animation-duration: 4.4s, 3.8s;
+}

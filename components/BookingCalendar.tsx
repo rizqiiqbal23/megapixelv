@@ -9,14 +9,6 @@ const ICON_LIMITED = String.fromCodePoint(0x23f3);
 const ICON_FULL = String.fromCodePoint(0x26d4);
 const ICON_PROMO = String.fromCodePoint(0x1f381);
 
-const SELECTED_ACCENTS = [
-  "border-pink-400 ring-pink-300 shadow-[0_0_0_3px_rgba(246,79,139,0.14)] bg-[#FFF1F8]",
-  "border-rose-300 ring-rose-200 shadow-[0_0_0_3px_rgba(251,113,133,0.14)] bg-[#FFF3F4]",
-  "border-fuchsia-300 ring-fuchsia-200 shadow-[0_0_0_3px_rgba(217,70,239,0.12)] bg-[#FFF2FB]",
-  "border-amber-300 ring-amber-200 shadow-[0_0_0_3px_rgba(251,191,36,0.12)] bg-[#FFF8EC]",
-  "border-emerald-300 ring-emerald-200 shadow-[0_0_0_3px_rgba(16,185,129,0.12)] bg-[#F2FBF6]",
-] as const;
-
 function toDateKey(year: number, month: number, day: number): string {
   return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
@@ -52,12 +44,6 @@ function getDayTypeIcon(type: "empty" | "partial" | "full"): string {
   if (type === "empty") return ICON_AVAILABLE;
   if (type === "partial") return ICON_LIMITED;
   return ICON_FULL;
-}
-
-function getSelectedAccent(dateKey: string): string {
-  const day = Number(dateKey.slice(-2));
-  const index = Number.isFinite(day) && day > 0 ? (day - 1) % SELECTED_ACCENTS.length : 0;
-  return SELECTED_ACCENTS[index];
 }
 
 type BookingCalendarProps = {
@@ -157,30 +143,39 @@ export default function BookingCalendar({
           const dayType = getDayType(cameraBookings[dateKey]);
           const isSelected = selectedDate === dateKey;
           const hasPromo = promoSet.has(dateKey);
-          const selectedAccent = isSelected ? getSelectedAccent(dateKey) : "";
 
           return (
-            <button
-              key={cell.key}
-              type="button"
-              onClick={() => onSelectDate(dateKey)}
-            className={`relative h-14 overflow-hidden rounded-xl border p-1 text-left transition ${getDayTypeClass(dayType)} hover:scale-[1.03] ${
-              hasPromo ? "border-pink-400 bg-[#FFF1F8] shadow-[0_0_0_2px_rgba(255,123,165,0.14)]" : ""
-            } ${
-                isSelected ? `ring-2 scale-[1.03] ${selectedAccent}` : ""
-              }`}
-            >
+            <div key={cell.key} className="relative h-14">
               {hasPromo ? (
-                <span
-                  aria-hidden="true"
-                  className="absolute right-1 top-1 select-none text-[12px] leading-none opacity-90 drop-shadow-sm transition-all duration-200 hover:scale-110"
-                >
-                  {ICON_PROMO}
-                </span>
+                <>
+                  <div aria-hidden="true" className="promo-glow-blur absolute -inset-[3px] rounded-xl pointer-events-none" />
+                  <div aria-hidden="true" className="promo-glow-border absolute -inset-[1px] rounded-xl p-[1.5px] pointer-events-none">
+                    <div className="h-full w-full rounded-[10px] bg-white/92" />
+                  </div>
+                </>
               ) : null}
-              <div className="text-sm font-semibold leading-none">{cell.day}</div>
-              <div className="mt-1 text-xs">{getDayTypeIcon(dayType)}</div>
-            </button>
+
+              <button
+                type="button"
+                onClick={() => onSelectDate(dateKey)}
+                className={`relative z-10 h-full w-full overflow-hidden rounded-xl border p-1 text-left transition-all duration-300 hover:scale-[1.03] ${
+                  getDayTypeClass(dayType)
+                } ${hasPromo ? "bg-[#FFF8FC] border-pink-100 shadow-[0_8px_18px_rgba(255,123,165,0.12)]" : ""} ${
+                  isSelected ? "border-pink-400 ring-2 ring-pink-300 shadow-[0_0_0_3px_rgba(246,79,139,0.14)] scale-[1.03]" : ""
+                }`}
+              >
+                {hasPromo ? (
+                  <span
+                    aria-hidden="true"
+                    className="absolute right-1 top-1 select-none text-[12px] leading-none opacity-90 drop-shadow-sm transition-all duration-200 hover:scale-110"
+                  >
+                    {ICON_PROMO}
+                  </span>
+                ) : null}
+                <div className="text-sm font-semibold leading-none">{cell.day}</div>
+                <div className="mt-1 text-xs">{getDayTypeIcon(dayType)}</div>
+              </button>
+            </div>
           );
         })}
       </div>
