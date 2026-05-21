@@ -7,7 +7,7 @@ const WEEK_DAYS = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
 const ICON_AVAILABLE = String.fromCodePoint(0x2705);
 const ICON_LIMITED = String.fromCodePoint(0x23f3);
 const ICON_FULL = String.fromCodePoint(0x26d4);
-const ICON_PROMO = String.fromCodePoint(0x1f4b0);
+const ICON_PROMO = String.fromCodePoint(0x1f381);
 
 function toDateKey(year: number, month: number, day: number): string {
   return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
@@ -156,12 +156,15 @@ export default function BookingCalendar({
               }`}
             >
               {hasPromo ? (
-                <span className="absolute right-1 top-1 flex h-9 w-4 items-center justify-center rounded-b-xl rounded-t-none bg-gradient-to-b from-[#FF7BA5] to-[#F64F8B] text-[8px] text-white shadow-sm">
+                <span
+                  aria-hidden="true"
+                  className="absolute right-1 top-1 select-none text-[12px] leading-none opacity-90 drop-shadow-sm transition-all duration-200 hover:scale-110"
+                >
                   {ICON_PROMO}
                 </span>
               ) : null}
               <div className="text-sm font-semibold leading-none">{cell.day}</div>
-              <div className={`mt-1 text-xs ${hasPromo ? "pr-10" : ""}`}>{getDayTypeIcon(dayType)}</div>
+              <div className="mt-1 text-xs">{getDayTypeIcon(dayType)}</div>
             </button>
           );
         })}
