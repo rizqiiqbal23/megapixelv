@@ -101,6 +101,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [isGestureRefreshing, setIsGestureRefreshing] = useState(false);
   const [promoDates, setPromoDates] = useState<string[]>([]);
+  const [promoRows, setPromoRows] = useState<PromoCampaign[]>([]);
   const [activeMonth, setActiveMonth] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
@@ -155,6 +156,7 @@ export default function Home() {
       const nextPromoDates = (json.rows || [])
         .filter((row) => row.active && row.quotaRemaining > 0)
         .map((row) => row.dateKey);
+      setPromoRows(json.rows || []);
       setPromoDates(nextPromoDates);
     } catch {
       // ignore promo loading failure
@@ -365,6 +367,7 @@ export default function Home() {
 
   const selectedDayStatus = selectedDate ? cameraBookings[selectedDate] : undefined;
   const selectedDateHasPromo = Boolean(selectedDate && promoDates.includes(selectedDate));
+  const selectedPromo = selectedDate ? promoRows.find((row) => row.dateKey === selectedDate && row.active && row.quotaRemaining > 0) : null;
 
   const cameraStates = useMemo(() => {
     if (!selectedDate) return [] as Array<{ key: CameraKey; status: "available" | "full" }>;
@@ -472,6 +475,7 @@ export default function Home() {
                 selectedDateRaw={selectedDate}
                 selectedTime={selectedTime}
                 isPromoDate={selectedDateHasPromo}
+                promoDescription={selectedPromo?.notes || null}
                 onChangeTime={setSelectedTime}
                 onOpenTimePicker={() => scrollPageTo("bottom")}
                 onCloseSelectedDate={handleCloseSelectedDate}

@@ -15,6 +15,7 @@ type SelectedDateCardProps = {
   selectedDateRaw: string;
   selectedTime: string;
   isPromoDate: boolean;
+  promoDescription: string | null;
   onChangeTime: (time: string) => void;
   onOpenTimePicker: () => void;
   onCloseSelectedDate: () => void;
@@ -28,6 +29,7 @@ export default function SelectedDateCard({
   selectedDateRaw,
   selectedTime,
   isPromoDate,
+  promoDescription,
   onChangeTime,
   onOpenTimePicker,
   onCloseSelectedDate,
@@ -82,7 +84,7 @@ export default function SelectedDateCard({
             <span>Promo aktif di tanggal ini!</span>
           </div>
           <div className="mt-1 text-xs leading-relaxed text-pink-500">
-            Diskon spesial untuk booking hari ini ✨
+            {promoDescription || "Promo spesial untuk booking hari ini ✨"}
           </div>
         </div>
       ) : null}
