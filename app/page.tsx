@@ -297,6 +297,7 @@ export default function Home() {
     const threshold = 90;
 
     const onTouchStart = (event: TouchEvent) => {
+      if (selectedDate) return;
       if (event.touches.length !== 1) return;
       startY = event.touches[0].clientY;
       startScrollTop = viewport.scrollTop;
@@ -304,7 +305,7 @@ export default function Home() {
     };
 
     const onTouchMove = (event: TouchEvent) => {
-      if (startY === null || refreshing) return;
+      if (startY === null || refreshing || selectedDate) return;
       const currentY = event.touches[0].clientY;
       const deltaY = currentY - startY;
       const maxScrollTop = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
@@ -322,6 +323,7 @@ export default function Home() {
 
     const onTouchEnd = () => {
       startY = null;
+      if (selectedDate) return;
       if (!triggerDirection || refreshing) return;
       refreshing = true;
       setIsGestureRefreshing(true);
@@ -339,7 +341,7 @@ export default function Home() {
       viewport.removeEventListener("touchend", onTouchEnd);
       viewport.removeEventListener("touchcancel", onTouchEnd);
     };
-  }, []);
+  }, [selectedDate]);
 
   useEffect(() => {
     const shouldForceLockMobile = typeof window !== "undefined" && window.innerWidth < 640;
