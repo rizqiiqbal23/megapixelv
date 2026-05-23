@@ -13,11 +13,13 @@ type AnnouncementResponse = {
 type AnnouncementDraft = {
   text: string;
   isActive: boolean;
+  speedSeconds: string;
 };
 
 const EMPTY_DRAFT: AnnouncementDraft = {
   text: "",
   isActive: false,
+  speedSeconds: "18",
 };
 
 async function safeJson<T>(response: Response): Promise<T | null> {
@@ -38,7 +40,8 @@ export default function AnnouncementEditor() {
   const [error, setError] = useState<string | null>(null);
 
   const previewText = useMemo(() => draft.text.trim(), [draft.text]);
-  const canSave = !draft.isActive || Boolean(previewText);
+  const speedSecondsValue = Number(draft.speedSeconds);
+  const canSave = (!draft.isActive || Boolean(previewText)) && Number.isFinite(speedSecondsValue) && speedSecondsValue >= 4;
 
   useEffect(() => {
     let active = true;
@@ -57,6 +60,7 @@ export default function AnnouncementEditor() {
         setDraft({
           text: current?.text || "",
           isActive: Boolean(current?.isActive),
+          speedSeconds: String(current?.speedSeconds ?? 18),
         });
       } catch (fetchError) {
         if (!active || controller.signal.aborted) return;
@@ -85,6 +89,7 @@ export default function AnnouncementEditor() {
         body: JSON.stringify({
           text: draft.text,
           isActive: draft.isActive,
+          speedSeconds: Number(draft.speedSeconds),
         }),
       });
       const json = await safeJson<AnnouncementResponse>(response);
@@ -95,6 +100,7 @@ export default function AnnouncementEditor() {
         setDraft({
           text: current.text || "",
           isActive: Boolean(current.isActive),
+          speedSeconds: String(current.speedSeconds ?? 18),
         });
       }
       setMessage("Announcement berhasil disimpan.");
@@ -126,7 +132,7 @@ export default function AnnouncementEditor() {
               className="min-h-32 w-full resize-none rounded-2xl border border-pink-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-pink-400 sm:min-h-40"
             />
 
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
               <button
                 type="button"
                 onClick={() => setDraft((current) => ({ ...current, isActive: true }))}
@@ -145,6 +151,20 @@ export default function AnnouncementEditor() {
               >
                 Inactive
               </button>
+              <label className="flex items-center gap-2 rounded-xl border border-pink-200 bg-white px-4 py-2 text-sm text-zinc-600">
+                <span className="whitespace-nowrap text-xs font-medium uppercase tracking-[0.18em] text-pink-500">
+                  Speed
+                </span>
+                <input
+                  type="number"
+                  min={4}
+                  max={60}
+                  value={draft.speedSeconds}
+                  onChange={(event) => setDraft((current) => ({ ...current, speedSeconds: event.target.value }))}
+                  className="w-full bg-transparent text-sm outline-none"
+                />
+                <span className="whitespace-nowrap text-xs text-zinc-500">detik</span>
+              </label>
             </div>
 
             <button
@@ -172,7 +192,7 @@ export default function AnnouncementEditor() {
           <div className="rounded-2xl border border-pink-100 bg-white p-3 sm:p-4">
             <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-pink-500">Live Preview</p>
             <div className="rounded-3xl border border-pink-100 bg-pink-50/50 p-3">
-              <AnnouncementBar text={previewText} className="w-full" />
+              <AnnouncementBar text={previewText} speedSeconds={speedSecondsValue} className="w-full" />
               {!previewText ? (
                 <p className="mt-3 text-sm text-zinc-500">Preview akan muncul saat teks diisi.</p>
               ) : (

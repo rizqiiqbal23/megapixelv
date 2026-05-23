@@ -30,6 +30,7 @@ type AnnouncementResponse = {
   announcement?: {
     text?: string;
     isActive?: boolean;
+    speedSeconds?: number;
     updatedAt?: string;
   } | null;
   error?: string;
@@ -111,6 +112,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [isGestureRefreshing, setIsGestureRefreshing] = useState(false);
   const [announcementText, setAnnouncementText] = useState<string | null>(null);
+  const [announcementSpeedSeconds, setAnnouncementSpeedSeconds] = useState(18);
   const [promoDates, setPromoDates] = useState<string[]>([]);
   const [promoRows, setPromoRows] = useState<PromoCampaign[]>([]);
   const [activeMonth, setActiveMonth] = useState(() => {
@@ -182,6 +184,11 @@ export default function Home() {
 
       const nextAnnouncement = json.announcement;
       setAnnouncementText(nextAnnouncement?.isActive && nextAnnouncement.text?.trim() ? nextAnnouncement.text : null);
+      setAnnouncementSpeedSeconds(
+        Number.isFinite(nextAnnouncement?.speedSeconds) && (nextAnnouncement?.speedSeconds ?? 0) > 0
+          ? Math.max(4, Math.floor(nextAnnouncement?.speedSeconds ?? 18))
+          : 18
+      );
     } catch {
       // ignore announcement loading failure
     }
@@ -477,20 +484,26 @@ export default function Home() {
 
       <Header />
 
+      {announcementText ? (
+        <div className="w-full pt-3">
+          <div className="w-full">
+            <AnnouncementBar text={announcementText} speedSeconds={announcementSpeedSeconds} />
+          </div>
+        </div>
+      ) : null}
+
       <div
         ref={scrollViewportRef}
-        className="h-[calc(100dvh-60px)] w-full overflow-y-auto overscroll-contain lg:h-auto lg:overflow-visible"
+        className="w-full overflow-y-auto overscroll-contain lg:h-auto lg:overflow-visible"
+        style={{
+          height: announcementText ? "calc(100dvh - 80px)" : "calc(100dvh - 60px)",
+        }}
       >
         <div
           ref={homeShellRef}
           className="mx-auto w-full max-w-[420px] origin-top px-3 pt-0 transition-transform duration-150 sm:pt-0"
           style={homeScale < 1 ? { transform: `scale(${homeScale})` } : undefined}
         >
-          {announcementText ? (
-            <div className="mt-3">
-              <AnnouncementBar text={announcementText} />
-            </div>
-          ) : null}
           <TopTabs
             active={activeTab === "cara-book" ? "cara-book" : activeTab === "photo-gallery" ? "photo-gallery" : null}
             onOpenCaraBook={openCaraBookModal}
@@ -498,15 +511,15 @@ export default function Home() {
           />
 
           <div className="mt-3 space-y-3">
-          <BookingCalendar
-            activeMonth={activeMonth}
-            setActiveMonth={setActiveMonth}
-            cameraBookings={cameraBookings}
-            promoDates={promoDates}
-            selectedDate={selectedDate}
-            onSelectDate={handleSelectDate}
-            lastUpdatedAt={lastUpdatedAt}
-          />
+            <BookingCalendar
+              activeMonth={activeMonth}
+              setActiveMonth={setActiveMonth}
+              cameraBookings={cameraBookings}
+              promoDates={promoDates}
+              selectedDate={selectedDate}
+              onSelectDate={handleSelectDate}
+              lastUpdatedAt={lastUpdatedAt}
+            />
 
             {selectedDate && (
               <SelectedDateCard

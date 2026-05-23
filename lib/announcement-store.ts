@@ -2,6 +2,7 @@ import { neon } from "@neondatabase/serverless";
 
 import {
   DEFAULT_ANNOUNCEMENT_ID,
+  DEFAULT_ANNOUNCEMENT_SPEED_SECONDS,
   normalizeAnnouncementInput,
   type AnnouncementInput,
   type AnnouncementRecord,
@@ -15,6 +16,7 @@ type AnnouncementRow = {
   id: string;
   text: string;
   is_active: boolean;
+  speed_seconds: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -34,10 +36,15 @@ async function ensureTable(): Promise<void> {
       id TEXT PRIMARY KEY,
       text TEXT NOT NULL DEFAULT '',
       is_active BOOLEAN NOT NULL DEFAULT FALSE,
+      speed_seconds INTEGER NOT NULL DEFAULT ${DEFAULT_ANNOUNCEMENT_SPEED_SECONDS},
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
-  `.then(() => undefined);
+  `
+    .then(async () => {
+      await db`ALTER TABLE announcements ADD COLUMN IF NOT EXISTS speed_seconds INTEGER NOT NULL DEFAULT ${DEFAULT_ANNOUNCEMENT_SPEED_SECONDS}`;
+    })
+    .then(() => undefined);
 
   await ensureTablePromise;
 }
@@ -47,6 +54,9 @@ function toAnnouncement(row: AnnouncementRow): AnnouncementRecord {
     id: row.id,
     text: row.text || "",
     isActive: Boolean(row.is_active),
+    speedSeconds: Number.isFinite(Number(row.speed_seconds))
+      ? Math.max(4, Math.floor(Number(row.speed_seconds)))
+      : DEFAULT_ANNOUNCEMENT_SPEED_SECONDS,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -58,7 +68,7 @@ export async function readAnnouncement(): Promise<AnnouncementRecord | null> {
   await ensureTable();
   const db = requireSql();
   const rows = (await db`
-    SELECT id, text, is_active, created_at, updated_at
+    SELECT id, text, is_active, speed_seconds, created_at, updated_at
     FROM announcements
     WHERE id = ${DEFAULT_ANNOUNCEMENT_ID}
     LIMIT 1
@@ -87,7 +97,7 @@ export async function upsertAnnouncement(input: AnnouncementInput): Promise<Anno
   await ensureTable();
   const db = requireSql();
   const existingRows = (await db`
-    SELECT id, text, is_active, created_at, updated_at
+    SELECT id, text, is_active, speed_seconds, created_at, updated_at
     FROM announcements
     WHERE id = ${DEFAULT_ANNOUNCEMENT_ID}
     LIMIT 1
@@ -99,9 +109,10 @@ export async function upsertAnnouncement(input: AnnouncementInput): Promise<Anno
       UPDATE announcements
       SET text = ${normalized.text},
           is_active = ${normalized.isActive},
+          speed_seconds = ${normalized.speedSeconds},
           updated_at = NOW()
       WHERE id = ${DEFAULT_ANNOUNCEMENT_ID}
-      RETURNING id, text, is_active, created_at, updated_at
+      RETURNING id, text, is_active, speed_seconds, created_at, updated_at
     `) as AnnouncementRow[];
 
     return toAnnouncement(updatedRows[0]);
@@ -112,6 +123,7 @@ export async function upsertAnnouncement(input: AnnouncementInput): Promise<Anno
       id,
       text,
       is_active,
+      speed_seconds,
       created_at,
       updated_at
     )
@@ -119,10 +131,11 @@ export async function upsertAnnouncement(input: AnnouncementInput): Promise<Anno
       ${DEFAULT_ANNOUNCEMENT_ID},
       ${normalized.text},
       ${normalized.isActive},
+      ${normalized.speedSeconds},
       NOW(),
       NOW()
     )
-    RETURNING id, text, is_active, created_at, updated_at
+    RETURNING id, text, is_active, speed_seconds, created_at, updated_at
   `) as AnnouncementRow[];
 
   return toAnnouncement(insertedRows[0]);
