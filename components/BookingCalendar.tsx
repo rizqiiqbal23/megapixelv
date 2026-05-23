@@ -178,14 +178,6 @@ export default function BookingCalendar({
                   isSelected && !holiday ? "border-pink-400 ring-2 ring-pink-300 shadow-[0_0_0_3px_rgba(246,79,139,0.14)] scale-[1.03]" : ""
                 }`}
               >
-                {holiday ? (
-                  <span
-                    aria-hidden="true"
-                    className="absolute inset-0 flex select-none items-center justify-center text-[10px] font-semibold uppercase tracking-[0.35em] text-zinc-300/80"
-                  >
-                    LIBUR
-                  </span>
-                ) : null}
                 {hasPromo && !holiday ? (
                   <span
                     aria-hidden="true"

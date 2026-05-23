@@ -640,14 +640,6 @@ export default function AdminPage() {
                       : getDayTypeClass(dayType as "empty" | "partial" | "full")
                   } ${isSelected ? "ring-2 ring-pink-400" : ""}`}
                 >
-                  {isHoliday ? (
-                    <span
-                      aria-hidden="true"
-                      className="absolute inset-0 flex select-none items-center justify-center text-[10px] font-semibold uppercase tracking-[0.35em] text-zinc-300/80"
-                    >
-                      LIBUR
-                    </span>
-                  ) : null}
                   <div className={`text-base font-semibold leading-none sm:text-2xl ${isHoliday ? "text-zinc-400" : ""}`}>{cell.day}</div>
                   <div className={`mt-1 text-base leading-tight font-medium sm:text-sm ${isHoliday ? "text-zinc-400" : ""}`}>
                     {isHoliday ? "LIBUR" : getDayTypeIcon(dayType as "empty" | "partial" | "full")}
