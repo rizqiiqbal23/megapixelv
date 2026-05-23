@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CAMERAS, type CameraName, type CameraStatus } from "@/lib/cameras";
-import { type ManualOverrides } from "@/lib/cameras";
+import { CAMERAS, type CameraName, type CameraStatus, type CalendarDayStatus, type ManualOverrides } from "@/lib/cameras";
 import AnnouncementEditor from "@/components/AnnouncementEditor";
 import { cloneDefaultPricelistRows, type PricelistRow } from "@/lib/pricelist-data";
 import PromoEditor from "@/components/PromoEditor";
 
-type CameraBookings = Record<string, CameraStatus>;
+type CameraBookings = Record<string, CalendarDayStatus>;
 
 type BookingResponse = {
   cameraBookings?: CameraBookings;
@@ -23,6 +22,10 @@ type SessionResponse = {
 type OverridesResponse = {
   overrides?: ManualOverrides;
   error?: string;
+};
+
+type OverrideDraft = CameraStatus & {
+  isHoliday: boolean;
 };
 
 type PricelistResponse = {
@@ -57,21 +60,23 @@ function cameraLabel(camera: CameraName): string {
   return "Kodak";
 }
 
-function getDayType(status?: CameraStatus): "empty" | "partial" | "full" {
+function getDayType(status?: CameraStatus & { isHoliday?: boolean }): "empty" | "partial" | "full" | "holiday" {
   if (!status) return "empty";
+  if (status.isHoliday) return "holiday";
   const bookedCount = CAMERAS.filter((camera) => status[camera]).length;
   if (bookedCount === 0) return "empty";
   if (bookedCount === CAMERAS.length) return "full";
   return "partial";
 }
 
-function getDayTypeClass(type: "empty" | "partial" | "full"): string {
+function getDayTypeClass(type: "empty" | "partial" | "full" | "holiday"): string {
   if (type === "empty") return "border-emerald-200 bg-emerald-50 text-emerald-700";
   if (type === "partial") return "border-amber-200 bg-amber-50 text-amber-700";
-  return "border-rose-200 bg-rose-50 text-rose-700";
+  if (type === "full") return "border-rose-200 bg-rose-50 text-rose-700";
+  return "border-zinc-300 bg-zinc-100 text-zinc-500";
 }
 
-function getDayTypeIcon(type: "empty" | "partial" | "full"): string {
+function getDayTypeIcon(type: "empty" | "partial" | "full" | "holiday"): string {
   if (type === "empty") return "✅";
   if (type === "partial") return "⏳";
   return "⛔";
@@ -88,16 +93,22 @@ function mergeOverrides(
   const merged: CameraBookings = {};
 
   for (const [dateKey, status] of Object.entries(baseBookings)) {
-    merged[dateKey] = { ...status };
+    merged[dateKey] = { ...status, isHoliday: Boolean(status.isHoliday) };
   }
 
   for (const [dateKey, status] of Object.entries(overrides)) {
-    if (!merged[dateKey]) merged[dateKey] = emptyStatus();
+    if (!merged[dateKey]) merged[dateKey] = { ...emptyStatus(), isHoliday: false };
+    merged[dateKey].isHoliday = Boolean(status.isHoliday);
     for (const camera of CAMERAS) {
       const overrideValue = status[camera];
       if (typeof overrideValue === "boolean") {
         merged[dateKey][camera] = overrideValue;
       }
+    }
+    if (status.isHoliday) {
+      merged[dateKey].nikon = false;
+      merged[dateKey].casio = false;
+      merged[dateKey].kodak = false;
     }
   }
 
@@ -144,7 +155,7 @@ export default function AdminPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [pricelistMessage, setPricelistMessage] = useState<string | null>(null);
   const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
-  const [draftStatus, setDraftStatus] = useState<CameraStatus>(emptyStatus());
+  const [draftStatus, setDraftStatus] = useState<OverrideDraft>({ ...emptyStatus(), isHoliday: false });
   const [activeMonth, setActiveMonth] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
@@ -172,6 +183,19 @@ export default function AdminPage() {
   );
   const selectedMerged = selectedDateKey ? mergedBookings[selectedDateKey] : undefined;
   const selectedOverride = selectedDateKey ? manualOverrides[selectedDateKey] : undefined;
+
+  function emptyDraftStatus(): OverrideDraft {
+    return { ...emptyStatus(), isHoliday: false };
+  }
+
+  function setDraftFromStatus(status?: CalendarDayStatus | null) {
+    setDraftStatus({
+      nikon: Boolean(status?.nikon),
+      casio: Boolean(status?.casio),
+      kodak: Boolean(status?.kodak),
+      isHoliday: Boolean(status?.isHoliday),
+    });
+  }
 
   const loadAdminData = useCallback(async (options?: { forceSheetRefresh?: boolean }) => {
     setLoadingData(true);
@@ -597,8 +621,10 @@ export default function AdminPage() {
               }
 
               const dateKey = toDateKey(year, month, cell.day);
-              const dayType = getDayType(mergedBookings[dateKey]);
+              const dayStatus = mergedBookings[dateKey];
+              const dayType = dayStatus?.isHoliday ? "holiday" : getDayType(dayStatus);
               const isSelected = selectedDateKey === dateKey;
+              const isHoliday = Boolean(dayStatus?.isHoliday);
 
               return (
                 <button
@@ -606,19 +632,26 @@ export default function AdminPage() {
                   type="button"
                   onClick={() => {
                     setSelectedDateKey(dateKey);
-                    const next = mergedBookings[dateKey] || emptyStatus();
-                    setDraftStatus({
-                      nikon: Boolean(next.nikon),
-                      casio: Boolean(next.casio),
-                      kodak: Boolean(next.kodak),
-                    });
+                    setDraftFromStatus(dayStatus);
                   }}
-                  className={`h-[4.6rem] rounded-lg border p-1.5 text-left transition duration-200 hover:scale-[1.03] sm:h-20 sm:rounded-xl sm:p-2 ${getDayTypeClass(
-                    dayType
-                  )} ${isSelected ? "ring-2 ring-pink-400" : ""}`}
+                  className={`relative h-[4.6rem] overflow-hidden rounded-lg border p-1.5 text-left transition duration-200 sm:h-20 sm:rounded-xl sm:p-2 ${
+                    isHoliday
+                      ? "border-zinc-300 bg-zinc-100 text-zinc-400"
+                      : getDayTypeClass(dayType as "empty" | "partial" | "full")
+                  } ${isSelected ? "ring-2 ring-pink-400" : ""}`}
                 >
-                  <div className="text-base font-semibold leading-none sm:text-2xl">{cell.day}</div>
-                  <div className="mt-1 text-base leading-tight font-medium sm:text-sm">{getDayTypeIcon(dayType)}</div>
+                  {isHoliday ? (
+                    <span
+                      aria-hidden="true"
+                      className="absolute inset-0 flex select-none items-center justify-center text-[10px] font-semibold uppercase tracking-[0.35em] text-zinc-300/80"
+                    >
+                      LIBUR
+                    </span>
+                  ) : null}
+                  <div className={`text-base font-semibold leading-none sm:text-2xl ${isHoliday ? "text-zinc-400" : ""}`}>{cell.day}</div>
+                  <div className={`mt-1 text-base leading-tight font-medium sm:text-sm ${isHoliday ? "text-zinc-400" : ""}`}>
+                    {isHoliday ? "LIBUR" : getDayTypeIcon(dayType as "empty" | "partial" | "full")}
+                  </div>
                 </button>
               );
             })}
@@ -662,7 +695,7 @@ export default function AdminPage() {
                   <button
                     type="button"
                     onClick={() => {
-                      setDraftStatus(emptyStatus());
+                      setDraftStatus(emptyDraftStatus());
                       setSelectedDateKey(null);
                     }}
                     className="rounded-xl border border-pink-200 bg-white px-3 py-2 text-xs text-pink-700"
@@ -672,40 +705,56 @@ export default function AdminPage() {
                 </div>
 
                 <div className="space-y-2">
-                  {CAMERAS.map((camera) => {
-                    const active = draftStatus[camera];
-                    return (
-                      <button
-                        key={camera}
-                        type="button"
-                        onClick={() =>
-                          setDraftStatus((prev) => ({
-                            ...prev,
-                            [camera]: !prev[camera],
-                          }))
-                        }
-                        className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left text-sm transition ${
-                          active ? "border-rose-200 bg-rose-50 text-rose-700" : "border-emerald-200 bg-emerald-50 text-emerald-700"
-                        }`}
-                      >
-                        <span className="font-medium">{cameraLabel(camera)}</span>
-                        <span>{active ? "Booked" : "Available"}</span>
-                      </button>
-                    );
-                  })}
+                  <button
+                    type="button"
+                    onClick={() => setDraftStatus((prev) => ({ ...prev, isHoliday: true }))}
+                    className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left text-sm transition ${
+                      draftStatus.isHoliday
+                        ? "border-zinc-300 bg-zinc-100 text-zinc-600"
+                        : "border-zinc-200 bg-white text-zinc-700"
+                    }`}
+                  >
+                    <span className="font-medium">Libur</span>
+                    <span>{draftStatus.isHoliday ? "Aktif" : "Set sebagai libur"}</span>
+                  </button>
+
+                  <div className={draftStatus.isHoliday ? "space-y-2 opacity-70" : "space-y-2"}>
+                    {CAMERAS.map((camera) => {
+                      const active = draftStatus[camera];
+                      return (
+                        <button
+                          key={camera}
+                          type="button"
+                          onClick={() =>
+                            setDraftStatus((prev) => ({
+                              ...prev,
+                              [camera]: !prev[camera],
+                              isHoliday: false,
+                            }))
+                          }
+                          className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left text-sm transition ${
+                            active ? "border-rose-200 bg-rose-50 text-rose-700" : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                          }`}
+                        >
+                          <span className="font-medium">{cameraLabel(camera)}</span>
+                          <span>{active ? "Booked" : "Available"}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 <div className="mt-4 flex flex-wrap gap-2">
                   <button
                     type="button"
-                    onClick={() => setDraftStatus({ nikon: true, casio: true, kodak: true })}
+                    onClick={() => setDraftStatus({ nikon: true, casio: true, kodak: true, isHoliday: false })}
                     className="rounded-xl bg-rose-500 px-3 py-2 text-xs font-medium text-white"
                   >
                     Semua Booked
                   </button>
                   <button
                     type="button"
-                    onClick={() => setDraftStatus({ nikon: false, casio: false, kodak: false })}
+                    onClick={() => setDraftStatus({ nikon: false, casio: false, kodak: false, isHoliday: false })}
                     className="rounded-xl bg-emerald-500 px-3 py-2 text-xs font-medium text-white"
                   >
                     Semua Available
@@ -734,10 +783,10 @@ export default function AdminPage() {
                 <div className="mt-5 rounded-2xl border border-pink-100 bg-white/80 p-3 text-xs text-zinc-600">
                   <p className="font-semibold text-zinc-700">Status saat ini</p>
                   <p className="mt-1">
-                    Merged: {selectedMerged ? "Ada" : "Kosong"}
+                    Merged: {selectedMerged ? (selectedMerged.isHoliday ? "Libur" : "Ada") : "Kosong"}
                   </p>
                   <p className="mt-1">
-                    Override manual: {selectedOverride ? "Ada" : "Tidak ada"}
+                    Override manual: {selectedOverride ? (selectedOverride.isHoliday ? "Libur" : "Ada") : "Tidak ada"}
                   </p>
                 </div>
               </>

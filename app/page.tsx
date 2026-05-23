@@ -403,8 +403,17 @@ export default function Home() {
   const selectedDateHasPromo = Boolean(selectedDate && promoDates.includes(selectedDate));
   const selectedPromo = selectedDate ? promoRows.find((row) => row.dateKey === selectedDate && row.active && row.quotaRemaining > 0) : null;
 
+  useEffect(() => {
+    if (selectedDate && selectedDayStatus?.isHoliday) {
+      setSelectedDate(null);
+      setSelectedCamera(null);
+      setSelectedTime("00:00");
+    }
+  }, [selectedDate, selectedDayStatus]);
+
   const cameraStates = useMemo(() => {
     if (!selectedDate) return [] as Array<{ key: CameraKey; status: "available" | "full" }>;
+    if (selectedDayStatus?.isHoliday) return [];
     return CAMERAS.map((camera) => {
       if (selectedDayStatus?.[camera]) {
         return { key: camera, status: "full" as const };
@@ -415,6 +424,8 @@ export default function Home() {
   }, [selectedDate, selectedDayStatus]);
 
   function handleSelectDate(dateKey: string) {
+    const nextStatus = cameraBookings[dateKey];
+    if (nextStatus?.isHoliday) return;
     if (selectedDate === dateKey) {
       handleCloseSelectedDate();
       return;

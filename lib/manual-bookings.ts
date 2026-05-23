@@ -1,5 +1,10 @@
 import { neon } from "@neondatabase/serverless";
-import { CAMERAS, type CameraStatus, type ManualOverrides } from "@/lib/cameras";
+import {
+  CAMERAS,
+  type CameraStatus,
+  type CalendarDayStatus,
+  type ManualOverrides,
+} from "@/lib/cameras";
 
 export type { CameraStatus, ManualOverrides };
 
@@ -25,11 +30,13 @@ function normalizeOverrides(input: unknown): ManualOverrides {
   const result: ManualOverrides = {};
   for (const [dateKey, value] of Object.entries(input as Record<string, unknown>)) {
     if (!value || typeof value !== "object" || Array.isArray(value)) continue;
-    const status = value as Partial<CameraStatus>;
+    const status = value as Partial<CameraStatus> & { isHoliday?: unknown };
+    const isHoliday = Boolean(status.isHoliday);
     result[dateKey] = {
-      nikon: Boolean(status.nikon),
-      casio: Boolean(status.casio),
-      kodak: Boolean(status.kodak),
+      nikon: isHoliday ? false : Boolean(status.nikon),
+      casio: isHoliday ? false : Boolean(status.casio),
+      kodak: isHoliday ? false : Boolean(status.kodak),
+      isHoliday,
     };
   }
 
@@ -44,9 +51,14 @@ async function ensureTable(): Promise<void> {
       nikon BOOLEAN NOT NULL DEFAULT FALSE,
       casio BOOLEAN NOT NULL DEFAULT FALSE,
       kodak BOOLEAN NOT NULL DEFAULT FALSE,
+      is_holiday BOOLEAN NOT NULL DEFAULT FALSE,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
-  `.then(() => undefined);
+  `
+    .then(async () => {
+      await db`ALTER TABLE manual_bookings ADD COLUMN IF NOT EXISTS is_holiday BOOLEAN NOT NULL DEFAULT FALSE`;
+    })
+    .then(() => undefined);
 
   await ensureTablePromise;
 }
@@ -57,10 +69,10 @@ export async function readManualOverrides(): Promise<ManualOverrides> {
   await ensureTable();
   const db = requireSql();
   const rows = (await db`
-    SELECT date_key, nikon, casio, kodak
+    SELECT date_key, nikon, casio, kodak, is_holiday
     FROM manual_bookings
     ORDER BY date_key ASC
-  `) as Array<{ date_key: string; nikon: boolean; casio: boolean; kodak: boolean }>;
+  `) as Array<{ date_key: string; nikon: boolean; casio: boolean; kodak: boolean; is_holiday: boolean }>;
 
   const overrides: ManualOverrides = {};
   for (const row of rows) {
@@ -68,6 +80,7 @@ export async function readManualOverrides(): Promise<ManualOverrides> {
       nikon: Boolean(row.nikon),
       casio: Boolean(row.casio),
       kodak: Boolean(row.kodak),
+      isHoliday: Boolean(row.is_holiday),
     };
   }
 
@@ -98,14 +111,16 @@ export async function writeManualOverrides(overrides: ManualOverrides): Promise<
   await db`DELETE FROM manual_bookings`;
 
   for (const [dateKey, status] of Object.entries(normalizeOverrides(overrides))) {
+    const isHoliday = Boolean(status.isHoliday);
     await db`
-      INSERT INTO manual_bookings (date_key, nikon, casio, kodak, updated_at)
-      VALUES (${dateKey}, ${Boolean(status.nikon)}, ${Boolean(status.casio)}, ${Boolean(status.kodak)}, NOW())
+      INSERT INTO manual_bookings (date_key, nikon, casio, kodak, is_holiday, updated_at)
+      VALUES (${dateKey}, ${isHoliday ? false : Boolean(status.nikon)}, ${isHoliday ? false : Boolean(status.casio)}, ${isHoliday ? false : Boolean(status.kodak)}, ${isHoliday}, NOW())
       ON CONFLICT (date_key)
       DO UPDATE SET
         nikon = EXCLUDED.nikon,
         casio = EXCLUDED.casio,
         kodak = EXCLUDED.kodak,
+        is_holiday = EXCLUDED.is_holiday,
         updated_at = NOW()
     `;
   }
@@ -114,23 +129,30 @@ export async function writeManualOverrides(overrides: ManualOverrides): Promise<
 export function mergeManualOverrides(
   cameraBookings: Record<string, CameraStatus>,
   overrides: ManualOverrides
-): Record<string, CameraStatus> {
-  const merged: Record<string, CameraStatus> = {};
+): Record<string, CalendarDayStatus> {
+  const merged: Record<string, CalendarDayStatus> = {};
 
   for (const [dateKey, status] of Object.entries(cameraBookings)) {
-    merged[dateKey] = { ...status };
+    merged[dateKey] = { ...status, isHoliday: false };
   }
 
   for (const [dateKey, status] of Object.entries(overrides)) {
     if (!merged[dateKey]) {
-      merged[dateKey] = { nikon: false, casio: false, kodak: false };
+      merged[dateKey] = { nikon: false, casio: false, kodak: false, isHoliday: false };
     }
 
+    merged[dateKey].isHoliday = Boolean(status.isHoliday);
     for (const camera of CAMERAS) {
       const value = status[camera];
       if (typeof value === "boolean") {
         merged[dateKey][camera] = value;
       }
+    }
+
+    if (status.isHoliday) {
+      merged[dateKey].nikon = false;
+      merged[dateKey].casio = false;
+      merged[dateKey].kodak = false;
     }
   }
 

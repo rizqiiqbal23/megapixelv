@@ -15,7 +15,7 @@ import {
 const CAMERAS = ["nikon", "casio", "kodak"] as const;
 
 type CameraName = (typeof CAMERAS)[number];
-type DayCameraStatus = Record<CameraName, boolean>;
+type DayCameraStatus = Record<CameraName, boolean> & { isHoliday?: boolean };
 type CameraBookings = Record<string, DayCameraStatus>;
 
 type BookingPayload =

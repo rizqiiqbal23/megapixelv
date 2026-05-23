@@ -29,9 +29,9 @@ export async function GET(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   if (!isAuthorized(request)) return unauthorized();
 
-  let body: { dateKey?: string; status?: CameraStatus; remove?: boolean } = {};
+  let body: { dateKey?: string; status?: CameraStatus & { isHoliday?: boolean }; remove?: boolean } = {};
   try {
-    body = (await request.json()) as { dateKey?: string; status?: CameraStatus; remove?: boolean };
+    body = (await request.json()) as { dateKey?: string; status?: CameraStatus & { isHoliday?: boolean }; remove?: boolean };
   } catch {
     return NextResponse.json({ error: "Body tidak valid." }, { status: 400 });
   }
@@ -46,10 +46,12 @@ export async function PUT(request: NextRequest) {
     if (body.remove) {
       delete overrides[body.dateKey];
     } else if (body.status) {
+      const isHoliday = Boolean(body.status.isHoliday);
       overrides[body.dateKey] = {
-        nikon: Boolean(body.status.nikon),
-        casio: Boolean(body.status.casio),
-        kodak: Boolean(body.status.kodak),
+        nikon: isHoliday ? false : Boolean(body.status.nikon),
+        casio: isHoliday ? false : Boolean(body.status.casio),
+        kodak: isHoliday ? false : Boolean(body.status.kodak),
+        isHoliday,
       };
     } else {
       return NextResponse.json({ error: "status wajib diisi." }, { status: 400 });

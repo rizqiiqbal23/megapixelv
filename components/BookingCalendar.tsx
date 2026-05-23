@@ -1,6 +1,8 @@
 ﻿import { type CameraKey } from "@/components/booking-form";
 
-export type DayCameraStatus = Record<CameraKey, boolean>;
+export type DayCameraStatus = Record<CameraKey, boolean> & {
+  isHoliday?: boolean;
+};
 export type CameraBookings = Record<string, DayCameraStatus>;
 
 const WEEK_DAYS = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
@@ -27,11 +29,16 @@ function buildCalendarDays(year: number, month: number) {
 
 function getDayType(status?: DayCameraStatus): "empty" | "partial" | "full" {
   if (!status) return "empty";
+  if (status.isHoliday) return "empty";
 
   const bookedCount = ["nikon", "casio", "kodak"].filter((camera) => status[camera as CameraKey]).length;
   if (bookedCount === 0) return "empty";
   if (bookedCount === 3) return "full";
   return "partial";
+}
+
+function isHoliday(status?: DayCameraStatus): boolean {
+  return Boolean(status?.isHoliday);
 }
 
 function getDayTypeClass(type: "empty" | "partial" | "full"): string {
@@ -140,13 +147,15 @@ export default function BookingCalendar({
           }
 
           const dateKey = toDateKey(year, month, cell.day);
-          const dayType = getDayType(cameraBookings[dateKey]);
+          const status = cameraBookings[dateKey];
+          const dayType = getDayType(status);
           const isSelected = selectedDate === dateKey;
+          const holiday = isHoliday(status);
           const hasPromo = promoSet.has(dateKey);
 
           return (
             <div key={cell.key} className="relative h-14">
-              {hasPromo ? (
+              {hasPromo && !holiday ? (
                 <>
                   <div aria-hidden="true" className="promo-glow-blur absolute -inset-[3px] rounded-xl pointer-events-none" />
                   <div aria-hidden="true" className="promo-glow-border absolute -inset-[1px] rounded-xl p-[1.5px] pointer-events-none">
@@ -157,14 +166,27 @@ export default function BookingCalendar({
 
               <button
                 type="button"
+                disabled={holiday}
                 onClick={() => onSelectDate(dateKey)}
-                className={`relative z-10 h-full w-full overflow-hidden rounded-xl border p-1 text-left transition-all duration-300 hover:scale-[1.03] ${
+                className={`relative z-10 h-full w-full overflow-hidden rounded-xl border p-1 text-left transition-all duration-300 ${
                   getDayTypeClass(dayType)
-                } ${hasPromo ? "bg-[#FFF8FC] border-pink-100 shadow-[0_8px_18px_rgba(255,123,165,0.12)]" : ""} ${
-                  isSelected ? "border-pink-400 ring-2 ring-pink-300 shadow-[0_0_0_3px_rgba(246,79,139,0.14)] scale-[1.03]" : ""
+                } ${
+                  holiday
+                    ? "cursor-not-allowed border-zinc-200 bg-zinc-100 text-zinc-400 shadow-none"
+                    : "hover:scale-[1.03]"
+                } ${hasPromo && !holiday ? "bg-[#FFF8FC] border-pink-100 shadow-[0_8px_18px_rgba(255,123,165,0.12)]" : ""} ${
+                  isSelected && !holiday ? "border-pink-400 ring-2 ring-pink-300 shadow-[0_0_0_3px_rgba(246,79,139,0.14)] scale-[1.03]" : ""
                 }`}
               >
-                {hasPromo ? (
+                {holiday ? (
+                  <span
+                    aria-hidden="true"
+                    className="absolute inset-0 flex select-none items-center justify-center text-[10px] font-semibold uppercase tracking-[0.35em] text-zinc-300/80"
+                  >
+                    LIBUR
+                  </span>
+                ) : null}
+                {hasPromo && !holiday ? (
                   <span
                     aria-hidden="true"
                     className="absolute right-1 top-1 select-none text-[12px] leading-none opacity-90 drop-shadow-sm transition-all duration-200 hover:scale-110"
@@ -172,8 +194,8 @@ export default function BookingCalendar({
                     {ICON_PROMO}
                   </span>
                 ) : null}
-                <div className="text-sm font-semibold leading-none">{cell.day}</div>
-                <div className="mt-1 text-xs">{getDayTypeIcon(dayType)}</div>
+                <div className={`text-sm font-semibold leading-none ${holiday ? "text-zinc-400" : ""}`}>{cell.day}</div>
+                <div className={`mt-1 text-xs ${holiday ? "text-zinc-400" : ""}`}>{holiday ? "LIBUR" : getDayTypeIcon(dayType)}</div>
               </button>
             </div>
           );
