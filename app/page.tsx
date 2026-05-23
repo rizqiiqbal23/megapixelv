@@ -478,7 +478,7 @@ export default function Home() {
       <Header />
 
       {announcementText ? (
-        <div className="w-full pt-3">
+        <div className="w-full">
           <div className="w-full">
             <AnnouncementBar text={announcementText} />
           </div>

@@ -13,7 +13,7 @@ export default function AnnouncementBar({ text, className = "" }: AnnouncementBa
 
   return (
     <div
-      className={`relative flex h-5 items-center overflow-hidden rounded-full border px-2 shadow-sm ${className}`}
+      className={`relative flex h-5 items-center overflow-hidden rounded-none border px-2 shadow-sm ${className}`}
       style={{
         backgroundColor: "#FFF1F6",
         borderColor: "#F9D4E4",
