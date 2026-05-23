@@ -169,3 +169,28 @@ body::before {
   opacity: 0.9;
   animation-duration: 4.4s, 3.8s;
 }
+
+@keyframes marqueeMove {
+  0% {
+    transform: translateX(0%);
+  }
+
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+.announcement-marquee {
+  display: inline-block;
+  min-width: 100%;
+  padding-left: 100%;
+  animation: marqueeMove 18s linear infinite;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .announcement-marquee {
+    animation: none;
+    padding-left: 0;
+  }
+}

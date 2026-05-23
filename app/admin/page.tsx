@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CAMERAS, type CameraName, type CameraStatus } from "@/lib/cameras";
 import { type ManualOverrides } from "@/lib/cameras";
+import AnnouncementEditor from "@/components/AnnouncementEditor";
 import { cloneDefaultPricelistRows, type PricelistRow } from "@/lib/pricelist-data";
 import PromoEditor from "@/components/PromoEditor";
 
@@ -116,7 +117,7 @@ async function safeJson<T>(response: Response): Promise<T | null> {
 export default function AdminPage() {
   const [checkingSession, setCheckingSession] = useState(true);
   const [authenticated, setAuthenticated] = useState(false);
-  const [adminView, setAdminView] = useState<"override" | "pricelist" | "promo">("override");
+  const [adminView, setAdminView] = useState<"override" | "pricelist" | "promo" | "announcement">("override");
   const [navOpen, setNavOpen] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -298,7 +299,7 @@ export default function AdminPage() {
     setMessage(null);
   }
 
-  function switchAdminView(view: "override" | "pricelist" | "promo") {
+  function switchAdminView(view: "override" | "pricelist" | "promo" | "announcement") {
     setAdminView(view);
     setNavOpen(false);
   }
@@ -506,6 +507,15 @@ export default function AdminPage() {
                   >
                     Promo
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => switchAdminView("announcement")}
+                    className={`block w-full px-4 py-3 text-left text-sm transition ${
+                      adminView === "announcement" ? "bg-pink-50 text-pink-700" : "text-zinc-700 hover:bg-pink-50"
+                    }`}
+                  >
+                    Announcement
+                  </button>
                 </div>
               ) : null}
             </div>
@@ -527,7 +537,11 @@ export default function AdminPage() {
         </div>
       </header>
 
-      <div className={`mx-auto grid w-full max-w-[1720px] grid-cols-1 gap-4 p-3 sm:p-6 lg:h-[calc(100vh-80px)] lg:grid-cols-[1.15fr_0.95fr] lg:overflow-hidden ${adminView === "promo" ? "hidden" : ""}`}>
+      <div
+        className={`mx-auto grid w-full max-w-[1720px] grid-cols-1 gap-4 p-3 sm:p-6 lg:h-[calc(100vh-80px)] lg:grid-cols-[1.15fr_0.95fr] lg:overflow-hidden ${
+          adminView === "promo" || adminView === "announcement" ? "hidden" : ""
+        }`}
+      >
         <section className={`relative rounded-[24px] border border-pink-100 bg-white p-3 shadow-[0_8px_24px_rgba(247,108,156,0.08)] sm:p-5 ${adminView === "override" ? "" : "hidden"}`}>
           <div className="mb-4 flex items-center justify-between gap-2">
             {canGoPrev ? (
@@ -794,6 +808,7 @@ export default function AdminPage() {
       </div>
 
       {adminView === "promo" ? <PromoEditor /> : null}
+      {adminView === "announcement" ? <AnnouncementEditor /> : null}
     </main>
   );
 }

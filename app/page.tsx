@@ -3,6 +3,7 @@
 import { Poppins } from "next/font/google";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import BookingCalendar, { type CameraBookings } from "@/components/BookingCalendar";
+import AnnouncementBar from "@/components/AnnouncementBar";
 import CaraBookModal from "@/components/CaraBookModal";
 import Header from "@/components/Header";
 import PhotoGalleryModal from "@/components/PhotoGalleryModal";
@@ -22,6 +23,15 @@ type BookingResponse = {
 
 type PromoResponse = {
   rows?: PromoCampaign[];
+  error?: string;
+};
+
+type AnnouncementResponse = {
+  announcement?: {
+    text?: string;
+    isActive?: boolean;
+    updatedAt?: string;
+  } | null;
   error?: string;
 };
 
@@ -100,6 +110,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isGestureRefreshing, setIsGestureRefreshing] = useState(false);
+  const [announcementText, setAnnouncementText] = useState<string | null>(null);
   const [promoDates, setPromoDates] = useState<string[]>([]);
   const [promoRows, setPromoRows] = useState<PromoCampaign[]>([]);
   const [activeMonth, setActiveMonth] = useState(() => {
@@ -163,6 +174,19 @@ export default function Home() {
     }
   }, []);
 
+  const loadAnnouncement = useCallback(async (signal?: AbortSignal) => {
+    try {
+      const response = await fetch("/api/announcement", { cache: "no-store", signal });
+      const json = (await response.json()) as AnnouncementResponse;
+      if (!response.ok) throw new Error(json.error || "Gagal memuat announcement.");
+
+      const nextAnnouncement = json.announcement;
+      setAnnouncementText(nextAnnouncement?.isActive && nextAnnouncement.text?.trim() ? nextAnnouncement.text : null);
+    } catch {
+      // ignore announcement loading failure
+    }
+  }, []);
+
   useEffect(() => {
     lastUpdatedAtRef.current = lastUpdatedAt;
   }, [lastUpdatedAt]);
@@ -202,7 +226,7 @@ export default function Home() {
       window.removeEventListener("resize", updateHomeScale);
       window.removeEventListener("orientationchange", updateHomeScale);
     };
-  }, []);
+  }, [announcementText]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -224,6 +248,16 @@ export default function Home() {
       window.clearInterval(interval);
     };
   }, [loadPromos]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void loadAnnouncement(controller.signal);
+    const interval = window.setInterval(() => void loadAnnouncement(), 15 * 1000);
+    return () => {
+      controller.abort();
+      window.clearInterval(interval);
+    };
+  }, [loadAnnouncement]);
 
   useEffect(() => {
     const checkForRemoteUpdate = async () => {
@@ -452,6 +486,11 @@ export default function Home() {
           className="mx-auto w-full max-w-[420px] origin-top px-3 pt-0 transition-transform duration-150 sm:pt-0"
           style={homeScale < 1 ? { transform: `scale(${homeScale})` } : undefined}
         >
+          {announcementText ? (
+            <div className="mt-3">
+              <AnnouncementBar text={announcementText} />
+            </div>
+          ) : null}
           <TopTabs
             active={activeTab === "cara-book" ? "cara-book" : activeTab === "photo-gallery" ? "photo-gallery" : null}
             onOpenCaraBook={openCaraBookModal}
