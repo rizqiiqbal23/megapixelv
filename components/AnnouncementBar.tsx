@@ -21,13 +21,10 @@ export default function AnnouncementBar({ text, className = "" }: AnnouncementBa
       aria-live="polite"
     >
       <div
-        className="announcement-marquee-track flex w-max items-center whitespace-nowrap text-[9px] font-medium leading-none sm:text-[10px]"
+        className="announcement-marquee whitespace-nowrap text-[9px] font-medium leading-none sm:text-[10px]"
         style={{ color: "#E75480", animationDuration: `${ANNOUNCEMENT_SPEED_SECONDS}s` }}
       >
-        <span className="flex-shrink-0 pr-8">{value}</span>
-        <span aria-hidden="true" className="flex-shrink-0 pr-8">
-          {value}
-        </span>
+        {value}
       </div>
     </div>
   );
