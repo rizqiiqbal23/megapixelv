@@ -36,13 +36,13 @@ async function ensureTable(): Promise<void> {
       id TEXT PRIMARY KEY,
       text TEXT NOT NULL DEFAULT '',
       is_active BOOLEAN NOT NULL DEFAULT FALSE,
-      speed_seconds INTEGER NOT NULL DEFAULT ${DEFAULT_ANNOUNCEMENT_SPEED_SECONDS},
+      speed_seconds INTEGER NOT NULL DEFAULT 18,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `
     .then(async () => {
-      await db`ALTER TABLE announcements ADD COLUMN IF NOT EXISTS speed_seconds INTEGER NOT NULL DEFAULT ${DEFAULT_ANNOUNCEMENT_SPEED_SECONDS}`;
+      await db`ALTER TABLE announcements ADD COLUMN IF NOT EXISTS speed_seconds INTEGER NOT NULL DEFAULT 18`;
     })
     .then(() => undefined);
 
