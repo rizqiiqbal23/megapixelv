@@ -36,13 +36,13 @@ async function ensureTable(): Promise<void> {
       id TEXT PRIMARY KEY,
       text TEXT NOT NULL DEFAULT '',
       is_active BOOLEAN NOT NULL DEFAULT FALSE,
-      speed_seconds INTEGER NOT NULL DEFAULT 18,
+      speed_seconds INTEGER NOT NULL DEFAULT 15,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `
     .then(async () => {
-      await db`ALTER TABLE announcements ADD COLUMN IF NOT EXISTS speed_seconds INTEGER NOT NULL DEFAULT 18`;
+      await db`ALTER TABLE announcements ADD COLUMN IF NOT EXISTS speed_seconds INTEGER NOT NULL DEFAULT 15`;
     })
     .then(() => undefined);
 
@@ -109,7 +109,7 @@ export async function upsertAnnouncement(input: AnnouncementInput): Promise<Anno
       UPDATE announcements
       SET text = ${normalized.text},
           is_active = ${normalized.isActive},
-          speed_seconds = ${normalized.speedSeconds},
+          speed_seconds = ${DEFAULT_ANNOUNCEMENT_SPEED_SECONDS},
           updated_at = NOW()
       WHERE id = ${DEFAULT_ANNOUNCEMENT_ID}
       RETURNING id, text, is_active, speed_seconds, created_at, updated_at
@@ -131,7 +131,7 @@ export async function upsertAnnouncement(input: AnnouncementInput): Promise<Anno
       ${DEFAULT_ANNOUNCEMENT_ID},
       ${normalized.text},
       ${normalized.isActive},
-      ${normalized.speedSeconds},
+      ${DEFAULT_ANNOUNCEMENT_SPEED_SECONDS},
       NOW(),
       NOW()
     )

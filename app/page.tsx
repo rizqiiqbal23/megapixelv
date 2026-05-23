@@ -30,7 +30,6 @@ type AnnouncementResponse = {
   announcement?: {
     text?: string;
     isActive?: boolean;
-    speedSeconds?: number;
     updatedAt?: string;
   } | null;
   error?: string;
@@ -112,7 +111,6 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [isGestureRefreshing, setIsGestureRefreshing] = useState(false);
   const [announcementText, setAnnouncementText] = useState<string | null>(null);
-  const [announcementSpeedSeconds, setAnnouncementSpeedSeconds] = useState(18);
   const [promoDates, setPromoDates] = useState<string[]>([]);
   const [promoRows, setPromoRows] = useState<PromoCampaign[]>([]);
   const [activeMonth, setActiveMonth] = useState(() => {
@@ -184,11 +182,6 @@ export default function Home() {
 
       const nextAnnouncement = json.announcement;
       setAnnouncementText(nextAnnouncement?.isActive && nextAnnouncement.text?.trim() ? nextAnnouncement.text : null);
-      setAnnouncementSpeedSeconds(
-        Number.isFinite(nextAnnouncement?.speedSeconds) && (nextAnnouncement?.speedSeconds ?? 0) > 0
-          ? Math.max(4, Math.floor(nextAnnouncement?.speedSeconds ?? 18))
-          : 18
-      );
     } catch {
       // ignore announcement loading failure
     }
@@ -487,7 +480,7 @@ export default function Home() {
       {announcementText ? (
         <div className="w-full pt-3">
           <div className="w-full">
-            <AnnouncementBar text={announcementText} speedSeconds={announcementSpeedSeconds} />
+            <AnnouncementBar text={announcementText} />
           </div>
         </div>
       ) : null}
