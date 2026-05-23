@@ -170,25 +170,23 @@ body::before {
   animation-duration: 4.4s, 3.8s;
 }
 
-@keyframes marqueeMove {
+@keyframes marqueeLoop {
   0% {
-    transform: translateX(100%);
+    transform: translateX(0%);
   }
 
   100% {
-    transform: translateX(-100%);
+    transform: translateX(-50%);
   }
 }
 
-.announcement-marquee {
-  display: inline-block;
-  padding-left: 100%;
-  animation: marqueeMove 15s linear infinite;
+.announcement-marquee-track {
+  animation: marqueeLoop 15s linear infinite;
   will-change: transform;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .announcement-marquee {
+  .announcement-marquee-track {
     animation: none;
   }
 }
