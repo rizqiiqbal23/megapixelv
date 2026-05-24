@@ -187,9 +187,11 @@ export default function PhotoGalleryModal({ open, onClose }: PhotoGalleryModalPr
                           <img
                             src={getDriveImageUrl(photo.id)}
                             alt={photo.alt}
-                            className="h-full w-full object-cover"
+                            className="h-full w-full select-none object-cover"
                             loading="lazy"
                             referrerPolicy="no-referrer"
+                            onContextMenu={(e) => e.preventDefault()}
+                            onDragStart={(e) => e.preventDefault()}
                             onError={(event) => {
                               event.currentTarget.src = `https://drive.google.com/uc?export=view&id=${photo.id}`;
                             }}
@@ -220,7 +222,7 @@ export default function PhotoGalleryModal({ open, onClose }: PhotoGalleryModalPr
           className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 p-4"
           onClick={() => setLightboxSrc(null)}
         >
-          <div className="relative h-[100dvh] w-full max-w-[100vw]" onClick={(e) => e.stopPropagation()}>
+          <div className="relative flex h-[100dvh] w-full max-w-[100vw] flex-col items-center justify-center" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
               onClick={() => setLightboxSrc(null)}
@@ -228,13 +230,18 @@ export default function PhotoGalleryModal({ open, onClose }: PhotoGalleryModalPr
             >
               Kembali
             </button>
-            <div className="flex h-full items-center justify-center">
+            <div className="flex h-full items-center justify-center overflow-hidden">
               <img
                 src={lightboxSrc}
                 alt={lightboxAlt}
-                className="max-h-full max-w-full object-contain shadow-2xl"
+                className="max-h-full max-w-full select-none object-contain shadow-2xl"
                 referrerPolicy="no-referrer"
+                onContextMenu={(e) => e.preventDefault()}
+                onDragStart={(e) => e.preventDefault()}
               />
+            </div>
+            <div className="mt-4 text-center text-xs font-medium tracking-wide text-white/70">
+              Copyright 2026 Megapixelv
             </div>
           </div>
         </div>
