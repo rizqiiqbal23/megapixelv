@@ -21,7 +21,7 @@ export default function AnnouncementBar({ text, className = "" }: AnnouncementBa
       aria-live="polite"
     >
       <div
-        className="announcement-marquee whitespace-nowrap text-[9px] font-medium leading-none sm:text-[10px]"
+        className="announcement-marquee flex-shrink-0 whitespace-nowrap text-[9px] font-medium leading-none sm:text-[10px]"
         style={{ color: "#E75480", animationDuration: `${ANNOUNCEMENT_CYCLE_SECONDS}s` }}
       >
         {value}
